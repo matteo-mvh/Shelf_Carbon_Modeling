@@ -378,17 +378,6 @@ def main():
     print(f"pCO2_sw mean (biology ON) : {np.mean(pco2_on_last):.3f} uatm")
     print(f"Atmospheric pCO2          : {params_on.pCO2_air:.3f} uatm")
     print("")
-    flux_abs_on = np.abs(out_on["F"])
-    flux_abs_off = np.abs(out_off["F"])
-    print(
-        "|F| diagnostics (ON) [mol C m^-2 s^-1]: "
-        f"min={np.min(flux_abs_on):.3e}, mean={np.mean(flux_abs_on):.3e}, max={np.max(flux_abs_on):.3e}"
-    )
-    print(
-        "|F| diagnostics (OFF) [mol C m^-2 s^-1]: "
-        f"min={np.min(flux_abs_off):.3e}, mean={np.mean(flux_abs_off):.3e}, max={np.max(flux_abs_off):.3e}"
-    )
-    print("")
     print(f"Air->sea uptake (biology OFF): {uptake_off_last:.6e} mol C m^-2 (integrated over last year)")
     print(f"Air->sea uptake (biology ON) : {uptake_on_last:.6e} mol C m^-2 (integrated over last year)")
     print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 (integrated over last year)")
@@ -398,10 +387,6 @@ def main():
     print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-3")
     print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-3")
     print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-3")
-    print("")
-    print("DIC_deep:", params_on.DIC_deep, "mol m^-3")
-    print("TA_deep :", params_on.TA_deep,  "mol m^-3")
-    print("G_deep  :", params_on.G_deep,   "mol glucose m^-3")
 
     figure_path = save_biology_comparison_plot(
         out_on,
