@@ -48,6 +48,15 @@ As model work grows, this repository can be organized as:
 - `results/` — processed outputs and diagnostics
 - `docs/` — notes for meetings, figures, and implementation recommendations
 
+## Folder Directory Explaination
+
+Current repository layout:
+
+- `README.md` — project overview, course context, workflow guidance, and references.
+- `test_models/` — lightweight Python test models used to prototype shelf-carbon process equations before MIKE/Ecolab integration.
+  - `air_sea_co2_exchange_model.py` — baseline air–sea CO₂ exchange prototype focused on physical transfer parameterization.
+  - `air_sea_exchange_with_easy_biology_est.py` — extended air–sea exchange prototype with a simple biological estimate component for first-pass sensitivity checks.
+
 ## Typical workflow
 
 1. Define a minimal governing equation set for transport and exchange.
