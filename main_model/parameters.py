@@ -25,7 +25,7 @@ class Params:
 
     # ---- Biology toggle and parameters (toy) ----
     biology_on: bool = True
-    Pmax: float = 5.0e-7
+    Pmax: float = 1.0e-10
     Km_C: float = 1.0e-2
     Tref: float = 15.0
     Q10: float = 2.0
