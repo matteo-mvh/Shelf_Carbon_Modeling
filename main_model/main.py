@@ -39,15 +39,26 @@ def seasonal_temperature(t, T_min, T_max, seasonality=True):
     amplitude = 0.5 * (T_max - T_min)
     return T_mean + amplitude * np.sin(2.0 * np.pi * t / period)
 
+def seasonal_light(t, peak_day=172.0, sharpness=2.0, seasonality=True):
+    """
+    Seasonal normalized light forcing in [0,1].
 
-def seasonal_light(t, seasonality=True, phase_days=0.0):
-    """Seasonal normalized light forcing in [0, 1]. t in seconds."""
+    peak_day : day of year of maximum light (NH ~172)
+    sharpness : >1 makes peak steeper (2–4 good range)
+    """
     t = np.atleast_1d(t).astype(float)
     period = 365.0 * 24.0 * 3600.0
+
     if not seasonality:
         return np.full_like(t, 0.5)
-    phase_seconds = float(phase_days) * 24.0 * 3600.0
-    return np.sin(2.0 * np.pi * (t - phase_seconds) / period) ** 2
+
+    peak_seconds = peak_day * 24.0 * 3600.0
+
+    base = 0.5 * (1.0 + np.cos(2.0 * np.pi * (t - peak_seconds) / period))
+
+    light = base ** sharpness
+
+    return np.clip(light, 0.0, 1.0)
 
 
 def rhs(t, y, p: Params, pH_guess=None):
