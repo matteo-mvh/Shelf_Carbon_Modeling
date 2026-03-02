@@ -45,7 +45,7 @@ class Params:
     seasonal_cycle_days: float = 365.0
     # Length of the seasonal cycle [days]
 
-    temperature_peak_day: float = 230.0
+    temperature_peak_day: float = 210.0
     # Day of year of maximum SST [days]
 
 
@@ -63,7 +63,7 @@ class Params:
     light_peak_day: float = 172.0
     # Day of year of maximum light [days]
 
-    light_sharpness: float = 3.0
+    light_sharpness: float = 1.5
     # Shape exponent for the seasonal light curve (>1 sharpens summer peak)
 
     light_winter: float = 120.0
