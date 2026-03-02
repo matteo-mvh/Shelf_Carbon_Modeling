@@ -39,6 +39,10 @@ def save_diagnostics_plot(
     axes[1].plot(td, outp["frac_CO3"], label="CO3-- / DIC (%)")
     axes[1].set_ylabel("Percent of DIC")
     axes[1].set_title("Carbonate speciation fractions")
+    axes[1].set_yscale("log")
+    axes[1].set_ylim(1e-1, 100)
+    axes[1].set_yticks([0.1, 1, 10, 100])
+    axes[1].set_yticklabels(["0.1%", "1%", "10%", "100%"])
     axes[1].grid(True)
     axes[1].legend()
 
@@ -109,9 +113,11 @@ def save_biology_comparison_plot(
 
     axes[2].plot(td, offp["F"], label="Air-sea flux (OFF)")
     axes[2].plot(td, onp["F"], label="Air-sea flux (ON)")
+    axes[2].plot(td, onp["remin_flux"], label="Remin flux (ON)")
+    axes[2].plot(td, -onp["glucose_prod_flux"], label="Glucose uptake flux (ON)")
     axes[2].axhline(0, linestyle="--")
     axes[2].set_ylabel("F (mol C m$^{-2}$ s$^{-1}$)")
-    axes[2].set_title("Air-sea CO2 flux (positive ocean to atmosphere)")
+    axes[2].set_title("Air-sea and biology carbon fluxes")
     axes[2].grid(True)
     axes[2].legend()
 

@@ -13,7 +13,11 @@ if __package__ in (None, ""):
         sys.path.insert(0, repo_root)
 
 from main_model.parameters import Params
-from main_model.modules.biology import tendencies as bio_tendencies
+from main_model.modules.biology import (
+    glucose_production_rate,
+    remin_rate_from_tau_days,
+    tendencies as bio_tendencies,
+)
 from main_model.modules.carbonate_solver import (
     initialize_dic_from_pco2,
     solubility_co2_weiss74,
@@ -109,6 +113,21 @@ def run(p: Params):
     co2_eq = K0 * p.pCO2_air
     F = k_series * (co2 - co2_eq)
 
+    if p.biology_on:
+        P_glucose = np.array(
+            [
+                glucose_production_rate(dic_i, Ti, p.Pmax, p.Km_C, Tref=p.Tref, Q10=p.Q10)
+                for dic_i, Ti in zip(dic, T)
+            ]
+        )
+        R_glucose = remin_rate_from_tau_days(p.tau_remin_days) * G
+    else:
+        P_glucose = np.zeros_like(dic)
+        R_glucose = np.zeros_like(dic)
+
+    glucose_c_flux = 6.0 * P_glucose * p.h
+    remin_c_flux = 6.0 * R_glucose * p.h
+
     with np.errstate(divide="ignore", invalid="ignore"):
         frac_co2 = 100.0 * co2 / dic
         frac_hco3 = 100.0 * hco3 / dic
@@ -126,6 +145,8 @@ def run(p: Params):
         "DIC": dic,
         "G": G,
         "DOC": 6.0 * G,
+        "glucose_prod_flux": glucose_c_flux,
+        "remin_flux": remin_c_flux,
         "pH": pH,
         "pCO2_sw": pco2_sw,
         "F": F,
