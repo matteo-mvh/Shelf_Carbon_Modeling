@@ -387,6 +387,10 @@ def main():
     print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-3")
     print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-3")
     print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-3")
+    print("")
+    print("DIC_deep:", params_on.DIC_deep, "mol m^-3")
+    print("TA_deep :", params_on.TA_deep,  "mol m^-3")
+    print("G_deep  :", params_on.G_deep,   "mol glucose m^-3")
 
     figure_path = save_biology_comparison_plot(
         out_on,
