@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Main integration script for the modular surface-ocean carbon box model."""
 
 import numpy as np
