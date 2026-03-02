@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Main integration script for the modular surface-ocean carbon box model."""
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent))
+
+from modules.biology import compute_biological_carbon_tendency
+from modules.carbonate_solver import solve_carbonate_system
+from modules.gas_exchange import compute_air_sea_co2_flux
+from parameters import PARAMS
+
+
+def initialize_state() -> dict:
+    """Create an initial state dictionary from centralized parameters."""
+    return {
+        "dic_umol_per_kg": PARAMS.dic_umol_per_kg,
+        "alkalinity_umol_per_kg": PARAMS.alkalinity_umol_per_kg,
+    }
+
+
+def run_one_timestep(state: dict) -> dict:
+    """Advance state by one placeholder time step using all modules."""
+    bio_tendency = compute_biological_carbon_tendency(state)
+    gas_flux = compute_air_sea_co2_flux(state)
+    carbonate = solve_carbonate_system(state)
+
+    next_state = dict(state)
+    next_state["dic_umol_per_kg"] += (bio_tendency + gas_flux) * PARAMS.dt_days
+    next_state.update(carbonate)
+    return next_state
+
+
+def main() -> None:
+    """Run the model scaffold."""
+    state = initialize_state()
+    state = run_one_timestep(state)
+    print("Model scaffold initialized successfully.")
+    print(state)
+
+
+if __name__ == "__main__":
+    main()
