@@ -25,11 +25,11 @@ def save_diagnostics_plot(
 
     fig, axes = plt.subplots(5, 1, figsize=(11, 15), sharex=True)
 
-    total_carbon = outp["DIC"] + outp["DOC"]
-    axes[0].plot(td, outp["DOC"], label="DOC")
-    axes[0].plot(td, outp["DIC"], label="DIC")
+    total_carbon = outp["DIC_areal"] + outp["DOC_areal"]
+    axes[0].plot(td, outp["DOC_areal"], label="DOC")
+    axes[0].plot(td, outp["DIC_areal"], label="DIC")
     axes[0].plot(td, total_carbon, label="Total carbon (DOC + DIC)")
-    axes[0].set_ylabel("Carbon (mol C m$^{-3}$)")
+    axes[0].set_ylabel("Carbon (mol C m$^{-2}$)")
     axes[0].set_title(f"DOC, DIC, and total carbon ({time_window})")
     axes[0].grid(True)
     axes[0].legend()
@@ -94,11 +94,11 @@ def save_biology_comparison_plot(
 
     fig, axes = plt.subplots(5, 1, figsize=(11, 15), sharex=True)
 
-    axes[0].plot(td, offp["DIC"], label="DIC (biology OFF)")
-    axes[0].plot(td, onp["DIC"], label="DIC (biology ON)")
-    axes[0].plot(td, onp["DOC"], label="DOC = 6×glucose (biology ON)")
-    axes[0].plot(td, onp["DIC"] + onp["DOC"], label="Total C = DIC + DOC (ON)")
-    axes[0].set_ylabel("Carbon (mol C m$^{-3}$)")
+    axes[0].plot(td, offp["DIC_areal"], label="DIC (biology OFF)")
+    axes[0].plot(td, onp["DIC_areal"], label="DIC (biology ON)")
+    axes[0].plot(td, onp["DOC_areal"], label="DOC = 6×glucose (biology ON)")
+    axes[0].plot(td, onp["DIC_areal"] + onp["DOC_areal"], label="Total C = DIC + DOC (ON)")
+    axes[0].set_ylabel("Carbon (mol C m$^{-2}$)")
     axes[0].set_title(f"Carbon pools with biology toggle ({time_window})")
     axes[0].grid(True)
     axes[0].legend()
