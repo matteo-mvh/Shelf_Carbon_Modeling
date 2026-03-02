@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+import os
+import sys
+
 import numpy as np
 from scipy.integrate import solve_ivp
+
+if __package__ in (None, ""):
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 
 from main_model.parameters import Params
 from main_model.modules.biology import tendencies as bio_tendencies
