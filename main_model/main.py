@@ -305,8 +305,6 @@ def main():
 
     print("Run success (ON):", out_on["success"])
     print("Run success (OFF):", out_off["success"])
-    print("Final pCO2_sw (ON):", out_on["pCO2_sw"][-1])
-    print("Final pCO2_sw (OFF):", out_off["pCO2_sw"][-1])
 
     t = out_on["t_s"]
     sec_per_year = 365.0 * 24.0 * 3600.0
@@ -314,6 +312,9 @@ def main():
 
     uptake_on_last = np.trapezoid((-out_on["F"])[mask_last_year], t[mask_last_year])
     uptake_off_last = np.trapezoid((-out_off["F"])[mask_last_year], t[mask_last_year])
+
+    pco2_on_last = out_on["pCO2_sw"][mask_last_year]
+    pco2_off_last = out_off["pCO2_sw"][mask_last_year]
     delta_uptake_last = uptake_on_last - uptake_off_last
 
     dic_on = out_on["DIC"]
@@ -326,6 +327,14 @@ def main():
     total_c_mean_last = np.mean((dic_on + doc_on)[mask_last_year])
 
     print("=== Last-year (final 365 days) ===")
+    print(f"pCO2_sw mean (biology OFF): {np.mean(pco2_off_last):.3f} uatm")
+    print(f"pCO2_sw range (biology OFF): {np.min(pco2_off_last):.3f} to {np.max(pco2_off_last):.3f} uatm")
+    print(f"pCO2_sw mean (biology ON) : {np.mean(pco2_on_last):.3f} uatm")
+    print(f"pCO2_sw range (biology ON) : {np.min(pco2_on_last):.3f} to {np.max(pco2_on_last):.3f} uatm")
+    print(f"Atmospheric pCO2          : {params_on.pCO2_air:.3f} uatm")
+    print(f"Final-day pCO2_sw (ON)    : {out_on['pCO2_sw'][-1]:.3f} uatm")
+    print(f"Final-day pCO2_sw (OFF)   : {out_off['pCO2_sw'][-1]:.3f} uatm")
+    print("")
     print(f"Air->sea uptake (biology OFF): {uptake_off_last:.6e} mol C m^-2 yr^-1")
     print(f"Air->sea uptake (biology ON) : {uptake_on_last:.6e} mol C m^-2 yr^-1")
     print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 yr^-1")
