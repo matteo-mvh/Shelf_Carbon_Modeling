@@ -22,6 +22,7 @@ from main_model.modules.carbonate_solver import (
 )
 from main_model.modules.gas_exchange import co2_flux_and_tendency, k_wanninkhof92
 from main_model.modules.plotting import save_diagnostics_plot
+from main_model.modules.plotting import save_biology_comparison_plot
 
 
 def seasonal_temperature(t, T_min, T_max, seasonality=True):
@@ -142,18 +143,59 @@ def run(p: Params):
 
 
 def main():
-    base_params = Params(biology_on=False)
-    out = run(base_params)
+    params_on = Params(biology_on=True)
+    params_off = Params(biology_on=False)
 
-    print("Run success:", out["success"])
-    print("Final pCO2_sw:", out["pCO2_sw"][-1])
+    out_on = run(params_on)
+    out_off = run(params_off)
 
-    figure_path = save_diagnostics_plot(
-        out,
-        plot_last_year_only=base_params.plot_last_year_only,
+    print("Run success (ON):", out_on["success"])
+    print("Run success (OFF):", out_off["success"])
+    print("Final pCO2_sw (ON):", out_on["pCO2_sw"][-1])
+    print("Final pCO2_sw (OFF):", out_off["pCO2_sw"][-1])
+
+    t = out_on["t_s"]
+    sec_per_year = 365.0 * 24.0 * 3600.0
+    mask_last_year = t >= (t[-1] - sec_per_year)
+
+    uptake_on_last = np.trapz((-out_on["F"])[mask_last_year], t[mask_last_year])
+    uptake_off_last = np.trapz((-out_off["F"])[mask_last_year], t[mask_last_year])
+    delta_uptake_last = uptake_on_last - uptake_off_last
+
+    dic_on = out_on["DIC"]
+    doc_on = out_on["DOC"]
+    d_doc_dt = np.gradient(doc_on, t)
+    drawdown_amount_last_year = np.trapz(d_doc_dt[mask_last_year], t[mask_last_year])
+
+    dic_mean_last = np.mean(dic_on[mask_last_year])
+    doc_mean_last = np.mean(doc_on[mask_last_year])
+    total_c_mean_last = np.mean((dic_on + doc_on)[mask_last_year])
+
+    print("=== Last-year (final 365 days) ===")
+    print(f"Air->sea uptake (biology OFF): {uptake_off_last:.6e} mol C m^-2 yr^-1")
+    print(f"Air->sea uptake (biology ON) : {uptake_on_last:.6e} mol C m^-2 yr^-1")
+    print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 yr^-1")
+    print(f"Uptake enhancement factor (ON / OFF): {uptake_on_last / uptake_off_last:.3f}")
+    print("")
+    print(f"Net bio DIC->DOC conversion (ON): {drawdown_amount_last_year:.6e} mol C m^-3 yr^-1")
+    print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-3")
+    print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-3")
+    print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-3")
+
+    figure_path = save_biology_comparison_plot(
+        out_on,
+        out_off,
+        plot_last_year_only=params_on.plot_last_year_only,
     )
     print("Saved plot:", figure_path)
-    return out
+
+    single_run_plot_path = save_diagnostics_plot(
+        out_on,
+        output_path="results/main_model_diagnostics_on.png",
+        plot_last_year_only=params_on.plot_last_year_only,
+    )
+    print("Saved single-run plot (ON):", single_run_plot_path)
+    return out_on, out_off
 
 
 if __name__ == "__main__":
