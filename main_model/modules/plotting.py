@@ -57,6 +57,7 @@ def save_diagnostics_plot(
     axes[0].plot(td, outp["DIC_areal"], label="DIC")
     axes[0].plot(td, total_carbon, label="Total carbon (DOC + DIC)")
     axes[0].set_ylabel("Carbon (mol C m$^{-2}$)")
+    axes[0].set_yscale("log")
     axes[0].set_title(f"DOC, DIC, and total carbon ({time_window})")
     axes[0].grid(True)
     axes[0].legend()
