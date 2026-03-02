@@ -19,7 +19,6 @@ class Params:
     T_max: float = 20.0
 
     # ---- Carbonate configuration ----
-    tau_spec_seconds: float = 2.0 * 3600.0
     S0_ta: float = 35.0
     ta0_mol_per_m3: float = 2300e-6 * REFERENCE_SEAWATER_DENSITY_KG_PER_M3
 
