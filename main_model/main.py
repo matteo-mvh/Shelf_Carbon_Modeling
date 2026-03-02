@@ -77,6 +77,26 @@ def seasonal_light(
     return winter_light + (summer_light - winter_light) * light_norm
 
 
+def seasonal_mld(
+    t,
+    base_depth,
+    seasonality=True,
+    winter_depth=80.0,
+    summer_depth=20.0,
+    peak_day=15.0,
+    cycle_days=365.0,
+):
+    """Seasonal mixed-layer depth [m]."""
+    t = np.atleast_1d(t).astype(float)
+    if not seasonality:
+        return np.full_like(t, float(base_depth))
+
+    period = cycle_days * 24.0 * 3600.0
+    peak_seconds = peak_day * 24.0 * 3600.0
+    mld_norm = 0.5 * (1.0 + np.cos(2.0 * np.pi * (t - peak_seconds) / period))
+    return summer_depth + (winter_depth - summer_depth) * mld_norm
+
+
 def rhs(t, y, p: Params, pH_guess=None):
     """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
     dic, G = [float(v) for v in y]
@@ -100,13 +120,24 @@ def rhs(t, y, p: Params, pH_guess=None):
         p.light_summer,
         p.seasonal_cycle_days,
     )[0])
+    h_mld = float(
+        seasonal_mld(
+            t,
+            p.h,
+            p.mld_seasonality,
+            p.mld_winter,
+            p.mld_summer,
+            p.mld_peak_day,
+            p.seasonal_cycle_days,
+        )[0]
+    )
     ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
 
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
-    _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, p.h)
+    _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, h_mld)
 
     if p.biology_on:
         dDIC_bio, dG_dt, _, _ = bio_tendencies(
@@ -186,6 +217,15 @@ def run(p: Params):
         p.light_summer,
         p.seasonal_cycle_days,
     )
+    mld = seasonal_mld(
+        sol.t,
+        p.h,
+        p.mld_seasonality,
+        p.mld_winter,
+        p.mld_summer,
+        p.mld_peak_day,
+        p.seasonal_cycle_days,
+    )
     dic, G = sol.y
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
@@ -223,16 +263,16 @@ def run(p: Params):
         P_glucose = np.zeros_like(dic)
         R_glucose = np.zeros_like(dic)
 
-    glucose_c_flux = 6.0 * P_glucose * p.h
-    remin_c_flux = 6.0 * R_glucose * p.h
+    glucose_c_flux = 6.0 * P_glucose * mld
+    remin_c_flux = 6.0 * R_glucose * mld
 
     with np.errstate(divide="ignore", invalid="ignore"):
         frac_co2 = 100.0 * co2 / dic
         frac_hco3 = 100.0 * hco3 / dic
         frac_co3 = 100.0 * co3 / dic
 
-    dic_areal = dic * p.h
-    doc_areal = 6.0 * G * p.h
+    dic_areal = dic * mld
+    doc_areal = 6.0 * G * mld
 
     return {
         "success": sol.success,
@@ -241,6 +281,7 @@ def run(p: Params):
         "t_days": sol.t / (24.0 * 3600.0),
         "T_C": T,
         "Light": light,
+        "MLD": mld,
         "CO2": co2,
         "HCO3": hco3,
         "CO3": co3,
