@@ -271,9 +271,6 @@ def run(p: Params):
         frac_hco3 = 100.0 * hco3 / dic
         frac_co3 = 100.0 * co3 / dic
 
-    dic_areal = dic * mld
-    doc_areal = 6.0 * G * mld
-
     return {
         "success": sol.success,
         "message": sol.message,
@@ -286,10 +283,8 @@ def run(p: Params):
         "HCO3": hco3,
         "CO3": co3,
         "DIC": dic,
-        "DIC_areal": dic_areal,
         "G": G,
         "DOC": 6.0 * G,
-        "DOC_areal": doc_areal,
         "glucose_prod_flux": glucose_c_flux,
         "remin_flux": remin_c_flux,
         "pH": pH,
@@ -321,8 +316,8 @@ def main():
     uptake_off_last = np.trapezoid((-out_off["F"])[mask_last_year], t[mask_last_year])
     delta_uptake_last = uptake_on_last - uptake_off_last
 
-    dic_on = out_on["DIC_areal"]
-    doc_on = out_on["DOC_areal"]
+    dic_on = out_on["DIC"]
+    doc_on = out_on["DOC"]
     d_doc_dt = np.gradient(doc_on, t)
     drawdown_amount_last_year = np.trapezoid(d_doc_dt[mask_last_year], t[mask_last_year])
 
@@ -336,10 +331,10 @@ def main():
     print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 yr^-1")
     print(f"Uptake enhancement factor (ON / OFF): {uptake_on_last / uptake_off_last:.3f}")
     print("")
-    print(f"Net bio DIC->DOC conversion (ON): {drawdown_amount_last_year:.6e} mol C m^-2 yr^-1")
-    print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-2")
-    print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-2")
-    print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-2")
+    print(f"Net bio DIC->DOC conversion (ON): {drawdown_amount_last_year:.6e} mol C m^-3")
+    print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-3")
+    print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-3")
+    print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-3")
 
     figure_path = save_biology_comparison_plot(
         out_on,
