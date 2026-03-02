@@ -69,7 +69,8 @@ def save_diagnostics_plot(
 
     ax4b = ax4.twinx()
     ax4b.plot(td, outp["Light"], label="Light (normalized)", color="tab:blue")
-    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
+    ax4b.plot(td, outp["h_norm"], label="MLD h (normalized)", color="tab:green")
+    ax4b.set_ylabel("Normalized forcing (0-1)", color="tab:blue")
     ax4b.set_ylim(0.0, 1.0)
     ax4b.tick_params(axis="y", labelcolor="tab:blue")
 
@@ -149,7 +150,8 @@ def save_biology_comparison_plot(
 
     ax4b = ax4.twinx()
     ax4b.plot(td, onp["Light"], label="Light (normalized)", color="tab:blue")
-    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
+    ax4b.plot(td, onp["h_norm"], label="MLD h (normalized)", color="tab:green")
+    ax4b.set_ylabel("Normalized forcing (0-1)", color="tab:blue")
     ax4b.set_ylim(0.0, 1.0)
     ax4b.tick_params(axis="y", labelcolor="tab:blue")
 

@@ -25,6 +25,21 @@ class Params:
     h: float = 50.0
     # Mixed-layer depth [m]
 
+    mld_seasonality: bool = True
+    # Toggle seasonal mixed-layer depth forcing
+
+    h_min: float = 10.0
+    # Minimum mixed-layer depth [m]
+
+    h_max: float = 60.0
+    # Maximum mixed-layer depth [m]
+
+    day_deep: float = 60.0
+    # Day of the year where mixed layer reaches maximum depth [days]
+
+    H_bottom: float = 80.0
+    # Local bathymetry used to cap mixed-layer depth [m]
+
     pCO2_air: float = 420.0
     # Atmospheric partial pressure of CO2 [µatm]
 
