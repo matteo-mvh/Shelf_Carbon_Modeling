@@ -45,8 +45,9 @@ class Params:
     seasonal_cycle_days: float = 365.0
     # Length of the seasonal cycle [days]
 
-    temperature_phase_days: float = 0.0
-    # Phase shift for temperature forcing [days]
+    temperature_peak_day: float = 230.0
+    # Day of year of maximum SST [days]
+
 
 
     # ============================================================
