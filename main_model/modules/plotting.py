@@ -59,12 +59,23 @@ def save_diagnostics_plot(
     axes[3].grid(True)
     axes[3].legend()
 
-    axes[4].plot(td, outp["T_C"], label="Temperature")
-    axes[4].set_ylabel("Temperature (°C)")
-    axes[4].set_xlabel("Time (days)")
-    axes[4].set_title("Temperature")
-    axes[4].grid(True)
-    axes[4].legend()
+    ax4 = axes[4]
+    ax4.plot(td, outp["T_C"], label="Temperature", color="tab:red")
+    ax4.set_ylabel("Temperature (°C)", color="tab:red")
+    ax4.tick_params(axis="y", labelcolor="tab:red")
+    ax4.set_xlabel("Time (days)")
+    ax4.set_title("Forcing parameters")
+    ax4.grid(True)
+
+    ax4b = ax4.twinx()
+    ax4b.plot(td, outp["Light"], label="Light (normalized)", color="tab:blue")
+    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
+    ax4b.set_ylim(0.0, 1.0)
+    ax4b.tick_params(axis="y", labelcolor="tab:blue")
+
+    lines_a, labels_a = ax4.get_legend_handles_labels()
+    lines_b, labels_b = ax4b.get_legend_handles_labels()
+    ax4.legend(lines_a + lines_b, labels_a + labels_b, loc="upper right")
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -128,12 +139,23 @@ def save_biology_comparison_plot(
     axes[3].grid(True)
     axes[3].legend()
 
-    axes[4].plot(td, onp["T_C"], label="Temperature")
-    axes[4].set_ylabel("Temperature (°C)")
-    axes[4].set_xlabel("Time (days)")
-    axes[4].set_title("Temperature forcing")
-    axes[4].grid(True)
-    axes[4].legend()
+    ax4 = axes[4]
+    ax4.plot(td, onp["T_C"], label="Temperature", color="tab:red")
+    ax4.set_ylabel("Temperature (°C)", color="tab:red")
+    ax4.tick_params(axis="y", labelcolor="tab:red")
+    ax4.set_xlabel("Time (days)")
+    ax4.set_title("Forcing parameters")
+    ax4.grid(True)
+
+    ax4b = ax4.twinx()
+    ax4b.plot(td, onp["Light"], label="Light (normalized)", color="tab:blue")
+    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
+    ax4b.set_ylim(0.0, 1.0)
+    ax4b.tick_params(axis="y", labelcolor="tab:blue")
+
+    lines_a, labels_a = ax4.get_legend_handles_labels()
+    lines_b, labels_b = ax4b.get_legend_handles_labels()
+    ax4.legend(lines_a + lines_b, labels_a + labels_b, loc="upper right")
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)

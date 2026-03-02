@@ -44,6 +44,18 @@ class Params:
 
 
     # ============================================================
+    # Seasonal light forcing for photosynthesis
+    # ============================================================
+
+    light_seasonality: bool = True
+    # Toggle seasonal light forcing
+
+    light_phase_days: float = 0.0
+    # Phase shift for light forcing [days]
+    # Light is computed as a squared sinusoid and normalized to [0, 1].
+
+
+    # ============================================================
     # Carbonate system configuration
     # ============================================================
 
@@ -67,12 +79,6 @@ class Params:
 
     Km_C: float = 1.0e-2
     # Half-saturation constant for DIC limitation [mol C m^-3]
-
-    Tref: float = 20.0
-    # Reference temperature for Q10 scaling [°C]
-
-    Q10: float = 2.0
-    # Temperature sensitivity factor (dimensionless)
 
     tau_remin_days: float = 60.0
     # Remineralization timescale [days]
