@@ -30,7 +30,7 @@ class Params:
     # Seasonal MLD forcing
     # ============================================================
 
-    mld_seasonality: bool = True
+    mld_seasonality: bool = False #not functional right now!
     # Toggle seasonal mixed-layer-depth forcing
 
     mld_winter: float = 100.0
