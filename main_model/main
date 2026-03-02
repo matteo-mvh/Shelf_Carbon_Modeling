@@ -15,8 +15,8 @@ from parameters import PARAMS
 def initialize_state() -> dict:
     """Create an initial state dictionary from centralized parameters."""
     return {
-        "dic_umol_per_kg": PARAMS.dic_umol_per_kg,
-        "alkalinity_umol_per_kg": PARAMS.alkalinity_umol_per_kg,
+        "pco2_ocean_uatm": PARAMS.pCO2_sw_init,
+        "glucose_mol_m3": PARAMS.G0,
     }
 
 
@@ -27,7 +27,7 @@ def run_one_timestep(state: dict) -> dict:
     carbonate = solve_carbonate_system(state)
 
     next_state = dict(state)
-    next_state["dic_umol_per_kg"] += (bio_tendency + gas_flux) * PARAMS.dt_days
+    next_state["pco2_ocean_uatm"] += (bio_tendency + gas_flux) * PARAMS.dt_output
     next_state.update(carbonate)
     return next_state
 
