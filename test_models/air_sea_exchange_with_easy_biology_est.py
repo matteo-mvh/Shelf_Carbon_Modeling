@@ -220,12 +220,12 @@ def main():
     mask_last_year = t >= (t[-1] - sec_per_year)
 
     # Uptake (air->sea) = -F (because F>0 is ocean->air)
-    uptake_on_last = np.trapz((-out_on["F"])[mask_last_year], t[mask_last_year])
-    uptake_off_last = np.trapz((-out_off["F"])[mask_last_year], t[mask_last_year])
+    uptake_on_last = np.trapezoid((-out_on["F"])[mask_last_year], t[mask_last_year])
+    uptake_off_last = np.trapezoid((-out_off["F"])[mask_last_year], t[mask_last_year])
     delta_uptake_last = uptake_on_last - uptake_off_last
 
     # Bio conversion (DIC->DOC) over last year
-    drawdown_amount_last_year = np.trapz(
+    drawdown_amount_last_year = np.trapezoid(
         out_on["net_drawdown_rate"][mask_last_year], t[mask_last_year]
     )
 

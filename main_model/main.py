@@ -158,14 +158,14 @@ def main():
     sec_per_year = 365.0 * 24.0 * 3600.0
     mask_last_year = t >= (t[-1] - sec_per_year)
 
-    uptake_on_last = np.trapz((-out_on["F"])[mask_last_year], t[mask_last_year])
-    uptake_off_last = np.trapz((-out_off["F"])[mask_last_year], t[mask_last_year])
+    uptake_on_last = np.trapezoid((-out_on["F"])[mask_last_year], t[mask_last_year])
+    uptake_off_last = np.trapezoid((-out_off["F"])[mask_last_year], t[mask_last_year])
     delta_uptake_last = uptake_on_last - uptake_off_last
 
     dic_on = out_on["DIC"]
     doc_on = out_on["DOC"]
     d_doc_dt = np.gradient(doc_on, t)
-    drawdown_amount_last_year = np.trapz(d_doc_dt[mask_last_year], t[mask_last_year])
+    drawdown_amount_last_year = np.trapezoid(d_doc_dt[mask_last_year], t[mask_last_year])
 
     dic_mean_last = np.mean(dic_on[mask_last_year])
     doc_mean_last = np.mean(doc_on[mask_last_year])
