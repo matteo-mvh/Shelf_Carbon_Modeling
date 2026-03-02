@@ -29,16 +29,24 @@ from main_model.modules.plotting import save_diagnostics_plot
 from main_model.modules.plotting import save_biology_comparison_plot
 
 
-def seasonal_temperature(t, T_min, T_max, seasonality=True, phase_days=0.0, cycle_days=365.0):
+def seasonal_temperature(
+    t,
+    T_min,
+    T_max,
+    seasonality=True,
+    peak_day=230.0,
+    cycle_days=365.0,
+):
     """Seasonal temperature in degC. t in seconds."""
     t = np.atleast_1d(t).astype(float)
     period = cycle_days * 24.0 * 3600.0
     T_mean = 0.5 * (T_min + T_max)
     if not seasonality:
         return np.full_like(t, T_mean)
-    amplitude = 0.5 * (T_max - T_min)
-    phase_seconds = phase_days * 24.0 * 3600.0
-    return T_mean + amplitude * np.sin(2.0 * np.pi * (t - phase_seconds) / period)
+    peak_seconds = peak_day * 24.0 * 3600.0
+
+    temp_norm = 0.5 * (1.0 + np.cos(2.0 * np.pi * (t - peak_seconds) / period))
+    return T_min + (T_max - T_min) * temp_norm
 
 def seasonal_light(
     t,
@@ -72,7 +80,16 @@ def seasonal_light(
 def rhs(t, y, p: Params, pH_guess=None):
     """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
     dic, G = [float(v) for v in y]
-    T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)[0])
+    T = float(
+        seasonal_temperature(
+            t,
+            p.T_min,
+            p.T_max,
+            p.seasonality,
+            p.temperature_peak_day,
+            p.seasonal_cycle_days,
+        )[0]
+    )
     light = float(seasonal_light(
         t,
         p.light_seasonality,
@@ -110,7 +127,16 @@ def rhs(t, y, p: Params, pH_guess=None):
 
 def initialize_state(p: Params):
     """Initialize DIC and glucose."""
-    T0 = float(seasonal_temperature(0.0, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)[0])
+    T0 = float(
+        seasonal_temperature(
+            0.0,
+            p.T_min,
+            p.T_max,
+            p.seasonality,
+            p.temperature_peak_day,
+            p.seasonal_cycle_days,
+        )[0]
+    )
     ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
@@ -142,7 +168,14 @@ def run(p: Params):
         max_step=p.dt_output,
     )
 
-    T = seasonal_temperature(sol.t, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)
+    T = seasonal_temperature(
+        sol.t,
+        p.T_min,
+        p.T_max,
+        p.seasonality,
+        p.temperature_peak_day,
+        p.seasonal_cycle_days,
+    )
     light = seasonal_light(
         sol.t,
         p.light_seasonality,
