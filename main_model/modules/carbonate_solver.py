@@ -1,13 +1,14 @@
-"""Carbonate chemistry solver module scaffold."""
+"""Carbonate chemistry and air-sea CO2 diagnostic helpers."""
+
+from __future__ import annotations
 
 import numpy as np
-
-from parameters import PARAMS
+from scipy.optimize import brentq
 
 REFERENCE_SEAWATER_DENSITY_KG_PER_M3 = 1025.0
 
 
-def solubility_co2_weiss74(T, S):
+def solubility_co2_weiss74(T, S, rho=REFERENCE_SEAWATER_DENSITY_KG_PER_M3):
     """Weiss (1974) CO2 solubility K0 (mol m^-3 uatm^-1)."""
     Tk = np.asarray(T, dtype=float) + 273.15
     A1, A2, A3 = -58.0931, 90.5069, 22.2940
@@ -18,33 +19,125 @@ def solubility_co2_weiss74(T, S):
         + A3 * np.log(Tk / 100.0)
         + S * (B1 + B2 * (Tk / 100.0) + B3 * (Tk / 100.0) ** 2)
     )
-    return np.exp(lnK0)
+    k0_mol_kg_atm = np.exp(lnK0)
+    return k0_mol_kg_atm * rho * 1e-6
+
+
+def K1_K2(T, S):
+    """Mehrbach (1973)-style refit for carbonic acid constants."""
+    Tk = T + 273.15
+    pK1 = 3633.86 / Tk - 61.2172 + 9.6777 * np.log(Tk) - 0.011555 * S + 0.0001152 * S**2
+    pK2 = 471.78 / Tk + 25.9290 - 3.16967 * np.log(Tk) - 0.01781 * S + 0.0001122 * S**2
+    return 10 ** (-pK1), 10 ** (-pK2)
+
+
+def Kw_const(T):
+    """Pure water dissociation constant (approx)."""
+    Tk = T + 273.15
+    return np.exp(148.96502 - 13847.26 / Tk - 23.6521 * np.log(Tk))
+
+
+def Kb_dickson(T, S):
+    """Dickson (1990) boric acid dissociation constant, Kb (mol kg^-1)."""
+    Tk = T + 273.15
+    sqrtS = np.sqrt(S)
+    lnKb = (
+        (-8966.90 - 2890.53 * sqrtS - 77.942 * S + 1.728 * S**1.5 - 0.0996 * S**2) / Tk
+        + (148.0248 + 137.1942 * sqrtS + 1.62142 * S)
+        + (-24.4344 - 25.085 * sqrtS - 0.2474 * S) * np.log(Tk)
+        + 0.053105 * sqrtS * Tk
+    )
+    return np.exp(lnKb)
+
+
+def total_boron(S, rho=REFERENCE_SEAWATER_DENSITY_KG_PER_M3):
+    """Uppström (1974): total boron converted to mol m^-3."""
+    tb_mol_kg = 0.0004157 * (S / 35.0)
+    return tb_mol_kg * rho
+
+
+def ta_from_salinity(S, ta0, S0=35.0):
+    """Scale alkalinity with salinity via dilution/concentration."""
+    return ta0 * (S / S0)
+
+
+def bracket_root(fun, x_min=3.0, x_max=11.0, n=1200):
+    """Find robust pH bracket for root finding."""
+    xs = np.linspace(x_min, x_max, n)
+    fs = np.array([fun(x) for x in xs], dtype=float)
+    mask = np.isfinite(fs)
+    xs, fs = xs[mask], fs[mask]
+    if len(xs) < 2:
+        raise ValueError("Residual is non-finite across the bracket search range.")
+
+    signs = np.sign(fs)
+    for i in range(len(xs) - 1):
+        if signs[i] == 0:
+            return xs[i] - 1e-6, xs[i] + 1e-6
+        if signs[i] * signs[i + 1] < 0:
+            return xs[i], xs[i + 1]
+
+    j = int(np.argmin(np.abs(fs)))
+    return max(x_min, xs[j] - 0.3), min(x_max, xs[j] + 0.3)
+
+
+def speciate_from_dic_ta(dic, ta, T, S):
+    """Given DIC and TA (mol m^-3), solve pH and carbonate species."""
+    K1, K2 = K1_K2(T, S)
+    Kw = Kw_const(T)
+    Kb = Kb_dickson(T, S)
+    TB = total_boron(S)
+
+    def residual(pH):
+        H = 10 ** (-pH)
+        co2 = dic / (1 + K1 / H + K1 * K2 / H**2)
+        hco3 = co2 * K1 / H
+        co3 = co2 * K1 * K2 / H**2
+        oh = Kw / H
+        boh4 = TB * Kb / (Kb + H)
+        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
+        return ta_calc - ta
+
+    a, b = bracket_root(residual)
+    fa, fb = residual(a), residual(b)
+    if np.sign(fa) * np.sign(fb) > 0:
+        raise ValueError("Could not bracket pH root in speciation solver.")
+
+    pH = brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
+    H = 10 ** (-pH)
+    co2 = dic / (1 + K1 / H + K1 * K2 / H**2)
+    hco3 = co2 * K1 / H
+    co3 = co2 * K1 * K2 / H**2
+    return co2, hco3, co3, pH
+
+
+def initialize_dic_from_pco2(pco2, ta, T, S):
+    """Given pCO2 (uatm) and TA, return DIC at equilibrium."""
+    K0 = solubility_co2_weiss74(T, S)
+    K1, K2 = K1_K2(T, S)
+    Kw = Kw_const(T)
+    Kb = Kb_dickson(T, S)
+    TB = total_boron(S)
+    co2 = K0 * pco2
+
+    def residual(pH):
+        H = 10 ** (-pH)
+        hco3 = co2 * K1 / H
+        co3 = co2 * K1 * K2 / H**2
+        oh = Kw / H
+        boh4 = TB * Kb / (Kb + H)
+        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
+        return ta_calc - ta
+
+    a, b = bracket_root(residual)
+    pH = brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
+    H = 10 ** (-pH)
+    hco3 = co2 * K1 / H
+    co3 = co2 * K1 * K2 / H**2
+    return co2 + hco3 + co3
 
 
 def pco2_from_dic_proxy(DIC, T, S):
-    """
-    Proxy diagnostic: pCO2_sw = DIC / K0.
-    (Later you'll replace with full carbonate speciation using DIC + TA.)
-    """
+    """Compatibility proxy diagnostic (used only if speciation is disabled)."""
     K0 = float(solubility_co2_weiss74(T, S))
     return float(DIC) / K0, K0
-
-
-def solve_carbonate_system(state: dict) -> dict:
-    """Return simple carbonate-system diagnostics from DIC and Weiss solubility."""
-    dic_umol_per_kg = float(state.get("dic_umol_per_kg", PARAMS.dic_umol_per_kg))
-    temperature_c = float(state.get("temperature_c", PARAMS.temperature_c))
-    salinity_psu = float(state.get("salinity_psu", PARAMS.salinity_psu))
-
-    dic_mol_per_m3 = (
-        dic_umol_per_kg * 1e-6 * REFERENCE_SEAWATER_DENSITY_KG_PER_M3
-    )
-    pco2_ocean_uatm, k0_mol_per_m3_uatm = pco2_from_dic_proxy(
-        dic_mol_per_m3, temperature_c, salinity_psu
-    )
-
-    return {
-        "pco2_ocean_uatm": pco2_ocean_uatm,
-        "ph_total_scale": 8.0,
-        "k0_mol_per_m3_uatm": k0_mol_per_m3_uatm,
-    }
