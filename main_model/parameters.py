@@ -25,6 +25,18 @@ class Params:
     h: float = 50.0
     # Mixed-layer depth [m]
 
+    mld_seasonality: bool = True
+    # Toggle seasonal mixed-layer-depth forcing
+
+    mld_winter: float = 80.0
+    # Winter mixed-layer depth [m]
+
+    mld_summer: float = 20.0
+    # Summer mixed-layer depth [m]
+
+    mld_peak_day: float = 15.0
+    # Day of year of maximum MLD [days]
+
     pCO2_air: float = 420.0
     # Atmospheric partial pressure of CO2 [µatm]
 
