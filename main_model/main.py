@@ -40,10 +40,21 @@ def seasonal_temperature(t, T_min, T_max, seasonality=True):
     return T_mean + amplitude * np.sin(2.0 * np.pi * t / period)
 
 
+def seasonal_light(t, seasonality=True, phase_days=0.0):
+    """Seasonal normalized light forcing in [0, 1]. t in seconds."""
+    t = np.atleast_1d(t).astype(float)
+    period = 365.0 * 24.0 * 3600.0
+    if not seasonality:
+        return np.full_like(t, 0.5)
+    phase_seconds = float(phase_days) * 24.0 * 3600.0
+    return np.sin(2.0 * np.pi * (t - phase_seconds) / period) ** 2
+
+
 def rhs(t, y, p: Params, pH_guess=None):
     """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
     dic, G = [float(v) for v in y]
     T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality)[0])
+    light = float(seasonal_light(t, p.light_seasonality, p.light_phase_days)[0])
     ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
@@ -56,11 +67,9 @@ def rhs(t, y, p: Params, pH_guess=None):
         dDIC_bio, dG_dt, _, _ = bio_tendencies(
             DIC=dic,
             G=G,
-            T=T,
+            light=light,
             Pmax=p.Pmax,
             Km_C=p.Km_C,
-            Tref=p.Tref,
-            Q10=p.Q10,
             tau_remin_days=p.tau_remin_days,
         )
     else:
@@ -105,6 +114,7 @@ def run(p: Params):
     )
 
     T = seasonal_temperature(sol.t, p.T_min, p.T_max, p.seasonality)
+    light = seasonal_light(sol.t, p.light_seasonality, p.light_phase_days)
     dic, G = sol.y
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
@@ -127,8 +137,8 @@ def run(p: Params):
     if p.biology_on:
         P_glucose = np.array(
             [
-                glucose_production_rate(dic_i, Ti, p.Pmax, p.Km_C, Tref=p.Tref, Q10=p.Q10)
-                for dic_i, Ti in zip(dic, T)
+                glucose_production_rate(dic_i, li, p.Pmax, p.Km_C)
+                for dic_i, li in zip(dic, light)
             ]
         )
         R_glucose = remin_rate_from_tau_days(p.tau_remin_days) * G
@@ -153,6 +163,7 @@ def run(p: Params):
         "t_s": sol.t,
         "t_days": sol.t / (24.0 * 3600.0),
         "T_C": T,
+        "Light": light,
         "CO2": co2,
         "HCO3": hco3,
         "CO3": co3,
