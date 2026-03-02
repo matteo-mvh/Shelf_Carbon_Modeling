@@ -88,10 +88,12 @@ def save_diagnostics_plot(
 
     temp_norm = _normalize_to_seasonal_range(outp["T_C"])
     light_norm = _normalize_to_seasonal_range(outp["Light"])
+    mld_norm = _normalize_to_seasonal_range(outp["MLD"])
 
     ax4 = axes[4]
     ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
     ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.plot(td, mld_norm, label="MLD (normalized)", color="tab:green")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
@@ -164,10 +166,12 @@ def save_biology_comparison_plot(
 
     temp_norm = _normalize_to_seasonal_range(onp["T_C"])
     light_norm = _normalize_to_seasonal_range(onp["Light"])
+    mld_norm = _normalize_to_seasonal_range(onp["MLD"])
 
     ax4 = axes[4]
     ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
     ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.plot(td, mld_norm, label="MLD (normalized)", color="tab:green")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
