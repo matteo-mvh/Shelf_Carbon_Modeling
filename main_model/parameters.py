@@ -62,7 +62,7 @@ class Params:
     light_peak_day: float = 172.0
     # Day of year of maximum light [days]
 
-    light_sharpness: float = 2.0
+    light_sharpness: float = 3.0
     # Shape exponent for the seasonal light curve (>1 sharpens summer peak)
 
     light_winter: float = 120.0
@@ -70,9 +70,6 @@ class Params:
 
     light_summer: float = 1000.0
     # Summer maximum photosynthetically active radiation [µmol photons m^-2 s^-1]
-
-    light_half_saturation: float = 250.0
-    # Half-saturation light level for photosynthesis [µmol photons m^-2 s^-1]
 
 
     # ============================================================
@@ -97,6 +94,9 @@ class Params:
     Pmax: float = 1.0e-8
     # Maximum glucose production rate [mol glucose m^-3 s^-1]
 
+    light_half_saturation: float = 250.0
+    # Half-saturation light level for photosynthesis [µmol photons m^-2 s^-1]
+
     Km_C: float = 1.0e-2
     # Half-saturation constant for DIC limitation [mol C m^-3]
 
@@ -108,13 +108,13 @@ class Params:
     # Integration settings
     # ============================================================
 
-    years: float = 5.0
+    years: float = 10.0
     # Total simulation length [years]
 
     dt_output: float = 24 * 3600
     # Output interval [s]
 
-    plot_last_year_only: bool = False
+    plot_last_year_only: bool = True
     # If True, diagnostics focus on final year
 
 
