@@ -117,6 +117,10 @@ def run(p: Params):
 def main():
     p = Params(biology_on=True)   # toggle here
     out = run(p)
+    print("Run success:", out["success"])
+    print("Final DIC:", out["DIC"][-1])
+    print("Final pCO2_sw:", out["pCO2_sw"][-1])
+    print("Final DOC:", out["DOC"][-1])
     # No plotting/printing by design.
     # Put saving/export here later (np.savez, netcdf, csv, etc.)
     return out
