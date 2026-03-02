@@ -30,9 +30,6 @@ class Params:
     # Seasonal MLD forcing
     # ============================================================
 
-    h: float = 50.0
-    # Mixed-layer depth [m]
-
     mld_seasonality: bool = True
     # Toggle seasonal mixed-layer-depth forcing
 
