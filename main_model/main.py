@@ -29,43 +29,60 @@ from main_model.modules.plotting import save_diagnostics_plot
 from main_model.modules.plotting import save_biology_comparison_plot
 
 
-def seasonal_temperature(t, T_min, T_max, seasonality=True):
+def seasonal_temperature(t, T_min, T_max, seasonality=True, phase_days=0.0, cycle_days=365.0):
     """Seasonal temperature in degC. t in seconds."""
     t = np.atleast_1d(t).astype(float)
-    period = 365.0 * 24.0 * 3600.0
+    period = cycle_days * 24.0 * 3600.0
     T_mean = 0.5 * (T_min + T_max)
     if not seasonality:
         return np.full_like(t, T_mean)
     amplitude = 0.5 * (T_max - T_min)
-    return T_mean + amplitude * np.sin(2.0 * np.pi * t / period)
+    phase_seconds = phase_days * 24.0 * 3600.0
+    return T_mean + amplitude * np.sin(2.0 * np.pi * (t - phase_seconds) / period)
 
-def seasonal_light(t, peak_day=172.0, sharpness=2.0, seasonality=True):
+def seasonal_light(
+    t,
+    seasonality=True,
+    phase_days=0.0,
+    peak_day=172.0,
+    sharpness=2.0,
+    winter_light=120.0,
+    summer_light=1000.0,
+    cycle_days=365.0,
+):
     """
-    Seasonal normalized light forcing in [0,1].
-
-    peak_day : day of year of maximum light (NH ~172)
-    sharpness : >1 makes peak steeper (2–4 good range)
+    Seasonal light forcing [µmol photons m^-2 s^-1].
     """
     t = np.atleast_1d(t).astype(float)
-    period = 365.0 * 24.0 * 3600.0
+    period = cycle_days * 24.0 * 3600.0
 
+    mean_light = 0.5 * (winter_light + summer_light)
     if not seasonality:
-        return np.full_like(t, 0.5)
+        return np.full_like(t, mean_light)
 
+    phase_seconds = phase_days * 24.0 * 3600.0
     peak_seconds = peak_day * 24.0 * 3600.0
 
-    base = 0.5 * (1.0 + np.cos(2.0 * np.pi * (t - peak_seconds) / period))
+    base = 0.5 * (1.0 + np.cos(2.0 * np.pi * (t - peak_seconds - phase_seconds) / period))
+    light_norm = np.clip(base, 0.0, 1.0) ** sharpness
 
-    light = base ** sharpness
-
-    return np.clip(light, 0.0, 1.0)
+    return winter_light + (summer_light - winter_light) * light_norm
 
 
 def rhs(t, y, p: Params, pH_guess=None):
     """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
     dic, G = [float(v) for v in y]
-    T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality)[0])
-    light = float(seasonal_light(t, p.light_seasonality, p.light_phase_days)[0])
+    T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)[0])
+    light = float(seasonal_light(
+        t,
+        p.light_seasonality,
+        p.light_phase_days,
+        p.light_peak_day,
+        p.light_sharpness,
+        p.light_winter,
+        p.light_summer,
+        p.seasonal_cycle_days,
+    )[0])
     ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
@@ -82,6 +99,7 @@ def rhs(t, y, p: Params, pH_guess=None):
             Pmax=p.Pmax,
             Km_C=p.Km_C,
             tau_remin_days=p.tau_remin_days,
+            light_half_saturation=p.light_half_saturation,
         )
     else:
         dDIC_bio = 0.0
@@ -92,7 +110,7 @@ def rhs(t, y, p: Params, pH_guess=None):
 
 def initialize_state(p: Params):
     """Initialize DIC and glucose."""
-    T0 = float(seasonal_temperature(0.0, p.T_min, p.T_max, p.seasonality)[0])
+    T0 = float(seasonal_temperature(0.0, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)[0])
     ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
@@ -124,8 +142,17 @@ def run(p: Params):
         max_step=p.dt_output,
     )
 
-    T = seasonal_temperature(sol.t, p.T_min, p.T_max, p.seasonality)
-    light = seasonal_light(sol.t, p.light_seasonality, p.light_phase_days)
+    T = seasonal_temperature(sol.t, p.T_min, p.T_max, p.seasonality, p.temperature_phase_days, p.seasonal_cycle_days)
+    light = seasonal_light(
+        sol.t,
+        p.light_seasonality,
+        p.light_phase_days,
+        p.light_peak_day,
+        p.light_sharpness,
+        p.light_winter,
+        p.light_summer,
+        p.seasonal_cycle_days,
+    )
     dic, G = sol.y
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
@@ -148,7 +175,13 @@ def run(p: Params):
     if p.biology_on:
         P_glucose = np.array(
             [
-                glucose_production_rate(dic_i, li, p.Pmax, p.Km_C)
+                glucose_production_rate(
+                    dic_i,
+                    li,
+                    p.Pmax,
+                    p.Km_C,
+                    p.light_half_saturation,
+                )
                 for dic_i, li in zip(dic, light)
             ]
         )
