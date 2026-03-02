@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import replace
-
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -46,17 +44,12 @@ def rhs(t, y, p: Params):
     co2_eq = K0 * p.pCO2_air
     F, dco2_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, p.h)
 
-    if p.speciation_on:
-        dic = co2 + hco3 + co3
-        ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
-        co2_tgt, hco3_tgt, co3_tgt, _ = speciate_from_dic_ta(dic, ta_t, T, p.S)
-        dco2_rel = (co2_tgt - co2) / p.tau_spec_seconds
-        dhco3_dt = (hco3_tgt - hco3) / p.tau_spec_seconds
-        dco3_dt = (co3_tgt - co3) / p.tau_spec_seconds
-    else:
-        dco2_rel = 0.0
-        dhco3_dt = 0.0
-        dco3_dt = 0.0
+    dic = co2 + hco3 + co3
+    ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+    co2_tgt, hco3_tgt, co3_tgt, _ = speciate_from_dic_ta(dic, ta_t, T, p.S)
+    dco2_rel = (co2_tgt - co2) / p.tau_spec_seconds
+    dhco3_dt = (hco3_tgt - hco3) / p.tau_spec_seconds
+    dco3_dt = (co3_tgt - co3) / p.tau_spec_seconds
 
     if p.biology_on:
         dDIC_bio, dG_dt, _, _ = bio_tendencies(
@@ -69,11 +62,8 @@ def rhs(t, y, p: Params):
             Q10=p.Q10,
             tau_remin_days=p.tau_remin_days,
         )
-        if p.speciation_on:
-            dco2_bio = dDIC_bio * (co2 / max(co2 + hco3 + co3, 1e-16))
-            dco2_flux += dco2_bio
-        else:
-            dco2_flux += dDIC_bio
+        dco2_bio = dDIC_bio * (co2 / max(co2 + hco3 + co3, 1e-16))
+        dco2_flux += dco2_bio
     else:
         dG_dt = 0.0
 
@@ -86,14 +76,8 @@ def initialize_state(p: Params):
     T0 = float(seasonal_temperature(0.0, p.T_min, p.T_max, p.seasonality)[0])
     ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
-    if p.speciation_on:
-        dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
-        co2_0, hco3_0, co3_0, _ = speciate_from_dic_ta(dic0, ta, T0, p.S)
-    else:
-        K0_0 = float(solubility_co2_weiss74(T0, p.S))
-        co2_0 = K0_0 * p.pCO2_sw_init
-        hco3_0 = 0.0
-        co3_0 = 0.0
+    dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
+    co2_0, hco3_0, co3_0, _ = speciate_from_dic_ta(dic0, ta, T0, p.S)
 
     return [float(co2_0), float(hco3_0), float(co3_0), float(p.G0)]
 
@@ -127,10 +111,9 @@ def run(p: Params):
     F = k_series * (co2 - co2_eq)
 
     pH = np.full_like(co2, np.nan)
-    if p.speciation_on:
-        ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
-        for i, Ti in enumerate(T):
-            _, _, _, pH[i] = speciate_from_dic_ta(dic[i], ta, float(Ti), p.S)
+    ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+    for i, Ti in enumerate(T):
+        _, _, _, pH[i] = speciate_from_dic_ta(dic[i], ta, float(Ti), p.S)
 
     with np.errstate(divide="ignore", invalid="ignore"):
         frac_co2 = 100.0 * co2 / dic
@@ -138,7 +121,6 @@ def run(p: Params):
         frac_co3 = 100.0 * co3 / dic
 
     return {
-        "speciation_on": p.speciation_on,
         "success": sol.success,
         "message": sol.message,
         "t_s": sol.t,
@@ -161,21 +143,17 @@ def run(p: Params):
 
 def main():
     base_params = Params(biology_on=False)
-    out_on = run(replace(base_params, speciation_on=True))
-    out_off = run(replace(base_params, speciation_on=False))
+    out = run(base_params)
 
-    print("Speciation ON success:", out_on["success"])
-    print("Speciation OFF success:", out_off["success"])
-    print("Final pCO2_sw ON:", out_on["pCO2_sw"][-1])
-    print("Final pCO2_sw OFF:", out_off["pCO2_sw"][-1])
+    print("Run success:", out["success"])
+    print("Final pCO2_sw:", out["pCO2_sw"][-1])
 
     figure_path = save_diagnostics_plot(
-        out_on,
-        out_off,
+        out,
         plot_last_year_only=base_params.plot_last_year_only,
     )
     print("Saved plot:", figure_path)
-    return out_on, out_off
+    return out
 
 
 if __name__ == "__main__":
