@@ -66,3 +66,70 @@ def save_diagnostics_plot(
     fig.savefig(path, dpi=150)
     plt.close(fig)
     return str(path)
+
+
+def save_biology_comparison_plot(
+    out_on: dict,
+    out_off: dict,
+    output_path: str = "results/biology_toggle_comparison.png",
+    plot_last_year_only: bool = True,
+):
+    """Save side-by-side ON/OFF biology diagnostics with glucose shown as DOC."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    t = out_on["t_s"]
+    sec_per_year = 365 * 24 * 3600
+    mask = t >= (t[-1] - sec_per_year) if plot_last_year_only else np.ones_like(t, dtype=bool)
+
+    onp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_on.items()}
+    offp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_off.items()}
+
+    td = onp["t_days"]
+    time_window = "last year" if plot_last_year_only else "full simulation"
+
+    fig, axes = plt.subplots(5, 1, figsize=(11, 15), sharex=True)
+
+    axes[0].plot(td, offp["DIC"], label="DIC (biology OFF)")
+    axes[0].plot(td, onp["DIC"], label="DIC (biology ON)")
+    axes[0].plot(td, onp["DOC"], label="DOC = 6×glucose (biology ON)")
+    axes[0].plot(td, onp["DIC"] + onp["DOC"], label="Total C = DIC + DOC (ON)")
+    axes[0].set_ylabel("Carbon (mol C m$^{-3}$)")
+    axes[0].set_title(f"Carbon pools with biology toggle ({time_window})")
+    axes[0].grid(True)
+    axes[0].legend()
+
+    axes[1].plot(td, offp["pCO2_sw"], label="pCO2_sw (OFF)")
+    axes[1].plot(td, onp["pCO2_sw"], label="pCO2_sw (ON)")
+    axes[1].axhline(420.0, linestyle="--", label="pCO2_air")
+    axes[1].set_ylabel("pCO2 (uatm)")
+    axes[1].set_title("Surface pCO2")
+    axes[1].grid(True)
+    axes[1].legend()
+
+    axes[2].plot(td, offp["F"], label="Air-sea flux (OFF)")
+    axes[2].plot(td, onp["F"], label="Air-sea flux (ON)")
+    axes[2].axhline(0, linestyle="--")
+    axes[2].set_ylabel("F (mol C m$^{-2}$ s$^{-1}$)")
+    axes[2].set_title("Air-sea CO2 flux (positive ocean to atmosphere)")
+    axes[2].grid(True)
+    axes[2].legend()
+
+    axes[3].plot(td, onp["pH"], label="pH (ON)")
+    axes[3].plot(td, offp["pH"], label="pH (OFF)", linestyle="--")
+    axes[3].set_ylabel("pH")
+    axes[3].set_title("pH")
+    axes[3].grid(True)
+    axes[3].legend()
+
+    axes[4].plot(td, onp["T_C"], label="Temperature")
+    axes[4].set_ylabel("Temperature (°C)")
+    axes[4].set_xlabel("Time (days)")
+    axes[4].set_title("Temperature forcing")
+    axes[4].grid(True)
+    axes[4].legend()
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return str(path)
