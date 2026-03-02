@@ -82,7 +82,6 @@ def seasonal_light(
 
 def seasonal_mld(
     t,
-    base_depth,
     seasonality=True,
     winter_depth=80.0,
     summer_depth=20.0,
@@ -92,7 +91,7 @@ def seasonal_mld(
     """Seasonal mixed-layer depth [m]."""
     t = np.atleast_1d(t).astype(float)
     if not seasonality:
-        return np.full_like(t, float(base_depth))
+        return np.full_like(t, DEFAULT_NON_SEASONAL_MLD_METERS)
 
     period = cycle_days * 24.0 * 3600.0
     peak_seconds = peak_day * 24.0 * 3600.0
@@ -123,11 +122,9 @@ def rhs(t, y, p: Params, pH_guess=None):
         p.light_summer,
         p.seasonal_cycle_days,
     )[0])
-    base_mld = DEFAULT_NON_SEASONAL_MLD_METERS if not p.seasonality else p.h
     h_mld = float(
         seasonal_mld(
             t,
-            base_mld,
             p.mld_seasonality,
             p.mld_winter,
             p.mld_summer,
@@ -221,10 +218,8 @@ def run(p: Params):
         p.light_summer,
         p.seasonal_cycle_days,
     )
-    base_mld = DEFAULT_NON_SEASONAL_MLD_METERS if not p.seasonality else p.h
     mld = seasonal_mld(
         sol.t,
-        base_mld,
         p.mld_seasonality,
         p.mld_winter,
         p.mld_summer,
