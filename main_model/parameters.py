@@ -42,6 +42,12 @@ class Params:
     T_max: float = 20.0
     # Maximum surface temperature [°C]
 
+    seasonal_cycle_days: float = 365.0
+    # Length of the seasonal cycle [days]
+
+    temperature_phase_days: float = 0.0
+    # Phase shift for temperature forcing [days]
+
 
     # ============================================================
     # Seasonal light forcing for photosynthesis
@@ -52,7 +58,21 @@ class Params:
 
     light_phase_days: float = 0.0
     # Phase shift for light forcing [days]
-    # Light is computed as a squared sinusoid and normalized to [0, 1].
+
+    light_peak_day: float = 172.0
+    # Day of year of maximum light [days]
+
+    light_sharpness: float = 2.0
+    # Shape exponent for the seasonal light curve (>1 sharpens summer peak)
+
+    light_winter: float = 120.0
+    # Winter minimum photosynthetically active radiation [µmol photons m^-2 s^-1]
+
+    light_summer: float = 1000.0
+    # Summer maximum photosynthetically active radiation [µmol photons m^-2 s^-1]
+
+    light_half_saturation: float = 250.0
+    # Half-saturation light level for photosynthesis [µmol photons m^-2 s^-1]
 
 
     # ============================================================

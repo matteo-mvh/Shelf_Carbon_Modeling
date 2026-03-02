@@ -6,6 +6,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def _normalize_to_seasonal_range(values):
+    """Normalize an array to [0, 1] using its own min/max."""
+    values = np.asarray(values, dtype=float)
+    vmin = np.nanmin(values)
+    vmax = np.nanmax(values)
+    if not np.isfinite(vmin) or not np.isfinite(vmax) or np.isclose(vmax, vmin):
+        return np.zeros_like(values)
+    return (values - vmin) / (vmax - vmin)
+
+
 def save_diagnostics_plot(
     out: dict,
     output_path: str = "results/main_model_diagnostics.png",
@@ -59,23 +69,19 @@ def save_diagnostics_plot(
     axes[3].grid(True)
     axes[3].legend()
 
+    temp_norm = _normalize_to_seasonal_range(outp["T_C"])
+    light_norm = _normalize_to_seasonal_range(outp["Light"])
+
     ax4 = axes[4]
-    ax4.plot(td, outp["T_C"], label="Temperature", color="tab:red")
-    ax4.set_ylabel("Temperature (°C)", color="tab:red")
-    ax4.tick_params(axis="y", labelcolor="tab:red")
+    ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
+    ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.set_ylabel("Normalized forcing (0-1)")
+    ax4.set_ylim(0.0, 1.0)
     ax4.set_xlabel("Time (days)")
-    ax4.set_title("Forcing parameters")
+    ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
-    ax4b = ax4.twinx()
-    ax4b.plot(td, outp["Light"], label="Light (normalized)", color="tab:blue")
-    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
-    ax4b.set_ylim(0.0, 1.0)
-    ax4b.tick_params(axis="y", labelcolor="tab:blue")
-
-    lines_a, labels_a = ax4.get_legend_handles_labels()
-    lines_b, labels_b = ax4b.get_legend_handles_labels()
-    ax4.legend(lines_a + lines_b, labels_a + labels_b, loc="upper right")
+    ax4.legend(loc="upper right")
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -139,23 +145,19 @@ def save_biology_comparison_plot(
     axes[3].grid(True)
     axes[3].legend()
 
+    temp_norm = _normalize_to_seasonal_range(onp["T_C"])
+    light_norm = _normalize_to_seasonal_range(onp["Light"])
+
     ax4 = axes[4]
-    ax4.plot(td, onp["T_C"], label="Temperature", color="tab:red")
-    ax4.set_ylabel("Temperature (°C)", color="tab:red")
-    ax4.tick_params(axis="y", labelcolor="tab:red")
+    ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
+    ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.set_ylabel("Normalized forcing (0-1)")
+    ax4.set_ylim(0.0, 1.0)
     ax4.set_xlabel("Time (days)")
-    ax4.set_title("Forcing parameters")
+    ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
-    ax4b = ax4.twinx()
-    ax4b.plot(td, onp["Light"], label="Light (normalized)", color="tab:blue")
-    ax4b.set_ylabel("Light forcing (0-1)", color="tab:blue")
-    ax4b.set_ylim(0.0, 1.0)
-    ax4b.tick_params(axis="y", labelcolor="tab:blue")
-
-    lines_a, labels_a = ax4.get_legend_handles_labels()
-    lines_b, labels_b = ax4b.get_legend_handles_labels()
-    ax4.legend(lines_a + lines_b, labels_a + labels_b, loc="upper right")
+    ax4.legend(loc="upper right")
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
