@@ -340,7 +340,7 @@ def main():
     print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 yr^-1")
     print(f"Uptake enhancement factor (ON / OFF): {uptake_on_last / uptake_off_last:.3f}")
     print("")
-    print(f"Net bio DIC->DOC conversion (ON): {drawdown_amount_last_year:.6e} mol C m^-3")
+    print(f"ΔDOC over last year (ON): {drawdown_amount_last_year:.6e} mol C m^-3")
     print(f"Mean DIC (ON)   : {dic_mean_last:.6e} mol C m^-3")
     print(f"Mean DOC (ON)   : {doc_mean_last:.6e} mol C m^-3")
     print(f"Mean Total (ON) : {total_c_mean_last:.6e} mol C m^-3")
