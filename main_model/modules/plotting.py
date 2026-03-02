@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+_MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+_MONTH_START_DAY = np.array([0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334], dtype=float)
+
+
 def _normalize_to_seasonal_range(values):
     """Normalize an array to [0, 1] using its own min/max."""
     values = np.asarray(values, dtype=float)
@@ -14,6 +18,19 @@ def _normalize_to_seasonal_range(values):
     if not np.isfinite(vmin) or not np.isfinite(vmax) or np.isclose(vmax, vmin):
         return np.zeros_like(values)
     return (values - vmin) / (vmax - vmin)
+
+
+def _apply_time_axis_format(axes, td, plot_last_year_only):
+    """Format the shared x-axis as month labels for one-year windows, else keep day units."""
+    if plot_last_year_only:
+        x0 = float(np.nanmin(td))
+        month_tick_positions = x0 + _MONTH_START_DAY
+        for ax in axes:
+            ax.set_xticks(month_tick_positions)
+        axes[-1].set_xlabel("Month")
+        axes[-1].set_xticklabels(_MONTH_LABELS)
+    else:
+        axes[-1].set_xlabel("Time (days)")
 
 
 def save_diagnostics_plot(
@@ -77,11 +94,11 @@ def save_diagnostics_plot(
     ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
-    ax4.set_xlabel("Time (days)")
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
     ax4.legend(loc="upper right")
+    _apply_time_axis_format(axes, td, plot_last_year_only)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -153,11 +170,11 @@ def save_biology_comparison_plot(
     ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
-    ax4.set_xlabel("Time (days)")
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
     ax4.legend(loc="upper right")
+    _apply_time_axis_format(axes, td, plot_last_year_only)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
