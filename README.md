@@ -37,34 +37,64 @@ The repository work should contribute to:
 6. Running cross-shelf DIC transport experiments to estimate temporary oceanic carbon capture and associated timescales.
 7. Supporting bi-weekly modeller meetings and presentation outputs.
 
-## Suggested repository structure
+## Current repository structure
 
-As model work grows, this repository can be organized as:
+- `README.md` — project overview, model structure, and workflow guidance.
+- `test_models/` — process-isolation prototypes used to test one or a few mechanisms at a time.
+  - `air_sea_co2_exchange_model.py` — **physical baseline**: isolates air–sea gas exchange with seasonal temperature forcing.
+  - `air_sea_exchange_with_carbonate_solver.py` — **carbonate chemistry isolation**: compares simple CO₂-only behavior against explicit carbonate speciation under fixed alkalinity.
+  - `air_sea_exchange_with_easy_biology_est.py` — **biology isolation**: adds a simple DIC↔DOC/glucose loop to quantify first-order biological drawdown effects.
+- `main_model/` — integrated model where physical + chemical + biological components are solved together in one modular workflow.
+  - `main.py` — top-level simulation driver and diagnostics for ON/OFF biology comparison.
+  - `parameters.py` — centralized parameter set for forcing, chemistry, biology, and numerics.
+  - `state.py` — state container definitions.
+  - `modules/`
+    - `gas_exchange.py` — gas transfer and air–sea flux tendency functions.
+    - `carbonate_solver.py` — carbonate system and TA/DIC speciation utilities.
+    - `biology.py` — biological production/remineralization tendencies.
+    - `plotting.py` — diagnostics plotting utilities for integrated runs.
 
-- `models/` — conceptual and numerical test models
-- `equations/` — governing equation variants, assumptions, derivations
-- `experiments/` — scenario setups and sensitivity runs
-- `data/` — forcing, boundary conditions, and sample inputs (if license permits)
-- `results/` — processed outputs and diagnostics
-- `docs/` — notes for meetings, figures, and implementation recommendations
+## How to interpret `test_models` vs `main_model`
 
-## Folder Directory Explaination
+### `test_models`: isolated-factor experiments
 
-Current repository layout:
+The `test_models` folder is intentionally split into targeted experiments where factors are isolated and behavior is easy to diagnose:
 
-- `README.md` — project overview, course context, workflow guidance, and references.
-- `test_models/` — lightweight Python test models used to prototype shelf-carbon process equations before MIKE/Ecolab integration.
-  - `air_sea_co2_exchange_model.py` — baseline air–sea CO₂ exchange prototype focused on physical transfer parameterization.
-  - `air_sea_exchange_with_easy_biology_est.py` — extended air–sea exchange prototype with a simple biological estimate component for first-pass sensitivity checks.
+- **Physical-only test** to understand air–sea equilibration behavior.
+- **Physical + carbonate-speciation test** to isolate chemistry effects on pCO₂ and species partitioning.
+- **Physical + simple biology test** to isolate biological drawdown and remineralization impacts.
+
+These scripts are useful for fast sanity checks, conceptual sensitivity scans, and equation debugging before combining everything.
+
+### `main_model`: full coupled experiment
+
+The `main_model` combines the same process families in a single, modular coupled run:
+
+- air–sea gas exchange,
+- carbonate equilibrium/speciation,
+- biological uptake/remineralization,
+- integrated diagnostics and comparison workflows.
+
+Compared to `test_models`, the `main_model` is designed to represent the full system together, with additional forcing and diagnostics in one place.
+
+## Forcing parameters (current status)
+
+As of now, the primary forcing parameters are:
+
+1. **Temperature** — seasonal forcing that modifies solubility, speciation, and gas transfer sensitivity.
+2. **Light** — seasonal forcing used in biological production limitations.
+3. **MLD (Mixed Layer Depth)** — represented by `h` and controls dilution and flux-to-concentration conversion.
+
+> Note: in the current implementation, temperature and light are seasonally varying forcings, while MLD is a key forcing parameter currently prescribed as a fixed value (`h`) per run.
 
 ## Typical workflow
 
 1. Define a minimal governing equation set for transport and exchange.
-2. Implement a compact test model with clear parameter exposure.
-3. Run parameter sweeps (mixing, gas transfer, shelf exchange timescales, etc.).
+2. Implement or modify a compact test model with clear parameter exposure.
+3. Run parameter sweeps (mixing, gas transfer, biology, chemistry, forcing timing, etc.).
 4. Diagnose sensitivities and identify robust/fragile assumptions.
 5. Translate stable formulations into MIKE/Ecolab-compatible forms.
-6. Report findings in modeller meetings and track decisions in `docs/`.
+6. Report findings in modeller meetings and track decisions.
 
 ## Scope and boundaries
 
@@ -85,7 +115,3 @@ Current repository layout:
 - MIKE user documentation.
 - Tsunogai, S., Watanabe, S., & Sato, T. (1999). *Is there a “continental shelf pump” for the absorption of atmospheric CO₂?* Tellus B, 51(3), 701–712.
 - Yool, A., & Fasham, M. J. R. (2001). *An examination of the “continental shelf pump” in an open ocean general circulation model.* Global Biogeochemical Cycles, 15(4), 831–844.
-
----
-
-If needed, this README can be expanded with concrete equation sets, parameter tables, and MIKE implementation notes as soon as the first prototype models are added.
