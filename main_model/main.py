@@ -375,12 +375,8 @@ def main():
 
     print("=== Last-year (final 365 days) ===")
     print(f"pCO2_sw mean (biology OFF): {np.mean(pco2_off_last):.3f} uatm")
-    print(f"pCO2_sw range (biology OFF): {np.min(pco2_off_last):.3f} to {np.max(pco2_off_last):.3f} uatm")
     print(f"pCO2_sw mean (biology ON) : {np.mean(pco2_on_last):.3f} uatm")
-    print(f"pCO2_sw range (biology ON) : {np.min(pco2_on_last):.3f} to {np.max(pco2_on_last):.3f} uatm")
     print(f"Atmospheric pCO2          : {params_on.pCO2_air:.3f} uatm")
-    print(f"Final-day pCO2_sw (ON)    : {out_on['pCO2_sw'][-1]:.3f} uatm")
-    print(f"Final-day pCO2_sw (OFF)   : {out_off['pCO2_sw'][-1]:.3f} uatm")
     print("")
     flux_abs_on = np.abs(out_on["F"])
     flux_abs_off = np.abs(out_off["F"])
