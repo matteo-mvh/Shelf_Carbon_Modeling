@@ -29,6 +29,9 @@ from main_model.modules.plotting import save_diagnostics_plot
 from main_model.modules.plotting import save_biology_comparison_plot
 
 
+DEFAULT_NON_SEASONAL_MLD_METERS = 50.0
+
+
 def seasonal_temperature(
     t,
     T_min,
@@ -120,10 +123,11 @@ def rhs(t, y, p: Params, pH_guess=None):
         p.light_summer,
         p.seasonal_cycle_days,
     )[0])
+    base_mld = DEFAULT_NON_SEASONAL_MLD_METERS if not p.seasonality else p.h
     h_mld = float(
         seasonal_mld(
             t,
-            p.h,
+            base_mld,
             p.mld_seasonality,
             p.mld_winter,
             p.mld_summer,
@@ -217,9 +221,10 @@ def run(p: Params):
         p.light_summer,
         p.seasonal_cycle_days,
     )
+    base_mld = DEFAULT_NON_SEASONAL_MLD_METERS if not p.seasonality else p.h
     mld = seasonal_mld(
         sol.t,
-        p.h,
+        base_mld,
         p.mld_seasonality,
         p.mld_winter,
         p.mld_summer,
