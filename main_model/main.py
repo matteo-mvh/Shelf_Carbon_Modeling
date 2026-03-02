@@ -40,13 +40,13 @@ def seasonal_temperature(t, T_min, T_max, seasonality=True):
     return T_mean + amplitude * np.sin(2.0 * np.pi * t / period)
 
 
-def rhs(t, y, p: Params):
+def rhs(t, y, p: Params, pH_guess=None):
     """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
     dic, G = [float(v) for v in y]
     T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality)[0])
     ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
-    co2, _, _, _ = speciate_from_dic_ta(dic, ta_t, T, p.S)
+    co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
 
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
@@ -67,7 +67,7 @@ def rhs(t, y, p: Params):
         dDIC_bio = 0.0
         dG_dt = 0.0
 
-    return [dDIC_flux + dDIC_bio, dG_dt]
+    return [dDIC_flux + dDIC_bio, dG_dt], pH
 
 
 def initialize_state(p: Params):
@@ -86,8 +86,15 @@ def run(p: Params):
     t_end = p.years * 365.0 * 24.0 * 3600.0
     t_eval = np.arange(0.0, t_end + p.dt_output, p.dt_output)
 
+    ph_cache = {"value": 8.1}
+
+    def rhs_cached(t, y):
+        dydt, pH = rhs(t, y, p, pH_guess=ph_cache["value"])
+        ph_cache["value"] = pH
+        return dydt
+
     sol = solve_ivp(
-        fun=lambda t, y: rhs(t, y, p),
+        fun=rhs_cached,
         t_span=(t_eval[0], t_eval[-1]),
         y0=y0,
         t_eval=t_eval,
@@ -105,8 +112,12 @@ def run(p: Params):
     co3 = np.full_like(dic, np.nan)
     pH = np.full_like(dic, np.nan)
     ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+    pH_guess = ph_cache["value"]
     for i, Ti in enumerate(T):
-        co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(dic[i], ta, float(Ti), p.S)
+        co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(
+            dic[i], ta, float(Ti), p.S, pH_guess=pH_guess
+        )
+        pH_guess = pH[i]
 
     pco2_sw = co2 / K0
     k_series = np.array([k_wanninkhof92(p.U10, Ti) for Ti in T])

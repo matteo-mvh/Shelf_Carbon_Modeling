@@ -81,7 +81,19 @@ def bracket_root(fun, x_min=3.0, x_max=11.0, n=1200):
     return max(x_min, xs[j] - 0.3), min(x_max, xs[j] + 0.3)
 
 
-def speciate_from_dic_ta(dic, ta, T, S):
+def _find_ph_bracket_from_guess(residual, pH_guess, x_min=3.0, x_max=11.0):
+    """Try to bracket the pH root near a prior estimate before full scanning."""
+    half_widths = (0.15, 0.35, 0.75, 1.5)
+    for hw in half_widths:
+        a = max(x_min, float(pH_guess) - hw)
+        b = min(x_max, float(pH_guess) + hw)
+        fa, fb = residual(a), residual(b)
+        if np.isfinite(fa) and np.isfinite(fb) and np.sign(fa) * np.sign(fb) <= 0:
+            return a, b
+    return None
+
+
+def speciate_from_dic_ta(dic, ta, T, S, pH_guess=None):
     """Given DIC and TA (mol m^-3), solve pH and carbonate species."""
     K1, K2 = K1_K2(T, S)
     Kw = Kw_const(T)
@@ -98,7 +110,14 @@ def speciate_from_dic_ta(dic, ta, T, S):
         ta_calc = hco3 + 2 * co3 + boh4 + oh - H
         return ta_calc - ta
 
-    a, b = bracket_root(residual)
+    if pH_guess is not None:
+        bracket = _find_ph_bracket_from_guess(residual, pH_guess)
+        if bracket is None:
+            a, b = bracket_root(residual)
+        else:
+            a, b = bracket
+    else:
+        a, b = bracket_root(residual)
     fa, fb = residual(a), residual(b)
     if np.sign(fa) * np.sign(fb) > 0:
         raise ValueError("Could not bracket pH root in speciation solver.")
