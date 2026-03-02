@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -159,15 +160,20 @@ def run(p: Params):
 
 
 def main():
-    out_on = run(Params(speciation_on=True, biology_on=False))
-    out_off = run(Params(speciation_on=False, biology_on=False))
+    base_params = Params(biology_on=False)
+    out_on = run(replace(base_params, speciation_on=True))
+    out_off = run(replace(base_params, speciation_on=False))
 
     print("Speciation ON success:", out_on["success"])
     print("Speciation OFF success:", out_off["success"])
     print("Final pCO2_sw ON:", out_on["pCO2_sw"][-1])
     print("Final pCO2_sw OFF:", out_off["pCO2_sw"][-1])
 
-    figure_path = save_diagnostics_plot(out_on, out_off)
+    figure_path = save_diagnostics_plot(
+        out_on,
+        out_off,
+        plot_last_year_only=base_params.plot_last_year_only,
+    )
     print("Saved plot:", figure_path)
     return out_on, out_off
 

@@ -6,18 +6,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def save_diagnostics_plot(out_on: dict, out_off: dict, output_path: str = "results/main_model_diagnostics.png"):
+def save_diagnostics_plot(
+    out_on: dict,
+    out_off: dict,
+    output_path: str = "results/main_model_diagnostics.png",
+    plot_last_year_only: bool = True,
+):
     """Save a multi-panel figure comparing speciation ON vs OFF runs."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     t = out_on["t_s"]
     sec_per_year = 365 * 24 * 3600
-    mask_last_year = t >= (t[-1] - sec_per_year)
+    mask = t >= (t[-1] - sec_per_year) if plot_last_year_only else np.ones_like(t, dtype=bool)
 
-    onp = {k: (v[mask_last_year] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_on.items()}
-    offp = {k: (v[mask_last_year] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_off.items()}
+    onp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_on.items()}
+    offp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_off.items()}
     td = onp["t_days"]
+    time_window = "last year" if plot_last_year_only else "full simulation"
 
     fig, axes = plt.subplots(4, 1, figsize=(11, 12), sharex=True)
 
@@ -25,7 +31,7 @@ def save_diagnostics_plot(out_on: dict, out_off: dict, output_path: str = "resul
     axes[0].plot(td, onp["DIC"], label="DIC (speciation ON; CO2*+HCO3-+CO3--)")
     axes[0].set_yscale("log")
     axes[0].set_ylabel("DIC (mol C m$^{-3}$)")
-    axes[0].set_title("DIC comparison (speciation ON vs OFF, last year)")
+    axes[0].set_title(f"DIC comparison (speciation ON vs OFF, {time_window})")
     axes[0].grid(True, which="both")
     axes[0].legend()
 
