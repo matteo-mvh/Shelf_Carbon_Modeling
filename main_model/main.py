@@ -99,9 +99,29 @@ def seasonal_mld(
     return summer_depth + (winter_depth - summer_depth) * mld_norm
 
 
+def seasonal_mld_tendency(
+    t,
+    seasonality=True,
+    winter_depth=80.0,
+    summer_depth=20.0,
+    peak_day=15.0,
+    cycle_days=365.0,
+):
+    """Time tendency of seasonal mixed-layer depth [m s^-1]."""
+    t = np.atleast_1d(t).astype(float)
+    if not seasonality:
+        return np.zeros_like(t)
+
+    period = cycle_days * 24.0 * 3600.0
+    peak_seconds = peak_day * 24.0 * 3600.0
+    omega = 2.0 * np.pi / period
+    amplitude = 0.5 * (winter_depth - summer_depth)
+    return -amplitude * omega * np.sin(omega * (t - peak_seconds))
+
+
 def rhs(t, y, p: Params, pH_guess=None):
-    """RHS for y=[DIC, G] with diagnostic carbonate speciation."""
-    dic, G = [float(v) for v in y]
+    """RHS for y=[DIC, G, TA] with diagnostic carbonate speciation."""
+    dic, G, ta_t = [float(v) for v in y]
     T = float(
         seasonal_temperature(
             t,
@@ -132,13 +152,32 @@ def rhs(t, y, p: Params, pH_guess=None):
             p.seasonal_cycle_days,
         )[0]
     )
-    ta_t = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+    dhdt = float(
+        seasonal_mld_tendency(
+            t,
+            p.mld_seasonality,
+            p.mld_winter,
+            p.mld_summer,
+            p.mld_peak_day,
+            p.seasonal_cycle_days,
+        )[0]
+    )
+    we = max(dhdt, 0.0)
 
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
 
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
     _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, h_mld)
+
+    dDIC_mld = -(dhdt / h_mld) * dic
+    dDIC_ent = (we / h_mld) * (p.DIC_deep - dic)
+
+    dTA_mld = -(dhdt / h_mld) * ta_t
+    dTA_ent = (we / h_mld) * (p.TA_deep - ta_t)
+
+    dG_mld = -(dhdt / h_mld) * G
+    dG_ent = (we / h_mld) * (p.G_deep - G)
 
     if p.biology_on:
         dDIC_bio, dG_dt, _, _ = bio_tendencies(
@@ -154,11 +193,15 @@ def rhs(t, y, p: Params, pH_guess=None):
         dDIC_bio = 0.0
         dG_dt = 0.0
 
-    return [dDIC_flux + dDIC_bio, dG_dt], pH
+    return [
+        dDIC_flux + dDIC_bio + dDIC_mld + dDIC_ent,
+        dG_dt + dG_mld + dG_ent,
+        dTA_mld + dTA_ent,
+    ], pH
 
 
 def initialize_state(p: Params):
-    """Initialize DIC and glucose."""
+    """Initialize DIC, glucose, and TA."""
     T0 = float(
         seasonal_temperature(
             0.0,
@@ -172,7 +215,7 @@ def initialize_state(p: Params):
     ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
 
     dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
-    return [float(dic0), float(p.G0)]
+    return [float(dic0), float(p.G0), float(ta)]
 
 
 def run(p: Params):
@@ -226,17 +269,16 @@ def run(p: Params):
         p.mld_peak_day,
         p.seasonal_cycle_days,
     )
-    dic, G = sol.y
+    dic, G, ta = sol.y
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
     hco3 = np.full_like(dic, np.nan)
     co3 = np.full_like(dic, np.nan)
     pH = np.full_like(dic, np.nan)
-    ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
     pH_guess = ph_cache["value"]
     for i, Ti in enumerate(T):
         co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(
-            dic[i], ta, float(Ti), p.S, pH_guess=pH_guess
+            dic[i], ta[i], float(Ti), p.S, pH_guess=pH_guess
         )
         pH_guess = pH[i]
 
@@ -284,6 +326,7 @@ def run(p: Params):
         "CO3": co3,
         "DIC": dic,
         "G": G,
+        "TA": ta,
         "DOC": 6.0 * G,
         "glucose_prod_flux": glucose_c_flux,
         "remin_flux": remin_c_flux,

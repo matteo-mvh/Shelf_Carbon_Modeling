@@ -118,6 +118,15 @@ class Params:
     tau_remin_days: float = 60.0
     # Remineralization timescale [days]
 
+    DIC_deep: float = 2.20
+    # Deep/source-water DIC concentration for entrainment [mol C m^-3]
+
+    TA_deep: float = 1.97
+    # Deep/source-water TA concentration for entrainment [mol m^-3]
+
+    G_deep: float = 0.0
+    # Deep/source-water glucose concentration for entrainment [mol glucose m^-3]
+
 
     # ============================================================
     # Integration settings
