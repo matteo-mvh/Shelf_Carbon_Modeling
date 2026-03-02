@@ -1,11 +1,82 @@
 # Shelf Carbon Modeling
 
-Repository structure:
+A lightweight repository for developing and testing simplified dissolved inorganic carbon (DIC) transport equations before implementation in **DHI MIKE / Ecolab** workflows.
 
-- `main_model/`: intended location for the primary development model.
-- `final_model/`: intended location for finalized, publication-ready model code.
-- `test_models/`: exploratory and test model implementations.
+## Purpose
 
-Current test model added:
+This project supports a Spring 2026 special course focused on hydrodynamic modeling of carbon transport on continental shelves. The repository is intended as a practical sandbox to:
 
-- `test_models/air_sea_co2_exchange_model.py`: one-box air-sea CO₂ exchange model with seasonal forcing.
+- prototype and compare equation formulations,
+- perform sensitivity analyses of key physical and biogeochemical parameters,
+- prepare transferable model components for integration into MIKE setups,
+- document assumptions and recommendations for a stand-alone DIC-oriented Ecolab template.
+
+In short: this is an equation-and-sensitivity development space that feeds into production-style DHI models.
+
+## Course context
+
+The course investigates how atmospheric CO₂ uptake and DIC redistribution are controlled by:
+
+- air–sea exchange,
+- advection and diffusion,
+- chemical speciation/equilibria,
+- seasonal stratification and circulation,
+- cross-shelf exchange processes that can temporarily isolate carbon from atmospheric contact.
+
+Model development emphasizes simplified two-dimensional hydrodynamic frameworks to explore first-order controls on DIC transport.
+
+## Learning goals reflected in this repository
+
+The repository work should contribute to:
+
+1. Reviewing and synthesizing literature on vertical and cross-shelf carbon transport.
+2. Understanding shelf-region physics and impacts on DIC dynamics.
+3. Hands-on MIKE workflow practice.
+4. Implementing carbon modules by adapting MIKE Ecolab templates or simple biogeochemical model concepts (e.g., MOPS-like simplifications).
+5. Recommending how DIC can be integrated as a permanent stand-alone Ecolab template product.
+6. Running cross-shelf DIC transport experiments to estimate temporary oceanic carbon capture and associated timescales.
+7. Supporting bi-weekly modeller meetings and presentation outputs.
+
+## Suggested repository structure
+
+As model work grows, this repository can be organized as:
+
+- `models/` — conceptual and numerical test models
+- `equations/` — governing equation variants, assumptions, derivations
+- `experiments/` — scenario setups and sensitivity runs
+- `data/` — forcing, boundary conditions, and sample inputs (if license permits)
+- `results/` — processed outputs and diagnostics
+- `docs/` — notes for meetings, figures, and implementation recommendations
+
+## Typical workflow
+
+1. Define a minimal governing equation set for transport and exchange.
+2. Implement a compact test model with clear parameter exposure.
+3. Run parameter sweeps (mixing, gas transfer, shelf exchange timescales, etc.).
+4. Diagnose sensitivities and identify robust/fragile assumptions.
+5. Translate stable formulations into MIKE/Ecolab-compatible forms.
+6. Report findings in modeller meetings and track decisions in `docs/`.
+
+## Scope and boundaries
+
+- This repository is for **rapid model prototyping and sensitivity control**, not a full operational shelf-carbon forecast system.
+- Simplicity and transparency are prioritized over high ecological complexity.
+- Any MIKE-specific implementation should remain traceable to tested equations developed here.
+
+## Team and course metadata
+
+- **Period:** Spring 2026
+- **ECTS:** 5
+- **Evaluation:** Pass/Not Pass (presentation in modeller meeting)
+- **Supervisors:** Ken H. Andersen, Andre Visser, Anders Erichsen
+- **Students:** Teo Vecchini, Matteo von Houwald
+
+## Core references
+
+- MIKE user documentation.
+- Tsunogai, S., Watanabe, S., & Sato, T. (1999). *Is there a “continental shelf pump” for the absorption of atmospheric CO₂?* Tellus B, 51(3), 701–712.
+- Yool, A., & Fasham, M. J. R. (2001). *An examination of the “continental shelf pump” in an open ocean general circulation model.* Global Biogeochemical Cycles, 15(4), 831–844.
+
+---
+
+If needed, this README can be expanded with concrete equation sets, parameter tables, and MIKE implementation notes as soon as the first prototype models are added.
