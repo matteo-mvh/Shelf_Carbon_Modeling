@@ -1,39 +1,36 @@
-"""Centralized parameter definitions for the surface-ocean carbon box model.
-
-All model modules should import parameters from this file.
-"""
+"""Centralized parameter definitions for the modular surface-ocean carbon model."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ModelParameters:
-    """Container for model-wide parameters.
-
-    Values below are placeholders so module integration can proceed with
-    a stable interface before final calibration.
-    """
+class Params:
+    """Configuration for the model integration."""
 
     # Time control
-    dt_days: float = 1.0
-    simulation_days: int = 365
+    dt_output: float = 24.0 * 3600.0
+    years: int = 5
 
-    # Surface box properties
-    mixed_layer_depth_m: float = 30.0
-    temperature_c: float = 15.0
-    salinity_psu: float = 35.0
+    # Surface box and forcing
+    h: float = 50.0
+    T_min: float = 2.0
+    T_max: float = 20.0
+    seasonality: bool = True
+    S: float = 30.0
+    U10: float = 6.0
+    pCO2_air: float = 420.0
+    pCO2_sw_init: float = 300.0
 
-    # Atmospheric forcing
-    atmospheric_pco2_uatm: float = 420.0
-    wind_speed_m_per_s: float = 7.0
-
-    # Initial dissolved inorganic carbon system state
-    dic_umol_per_kg: float = 2100.0
-    alkalinity_umol_per_kg: float = 2300.0
-
-    # Biology placeholders
-    primary_production_umol_c_per_kg_per_day: float = 2.0
-    respiration_umol_c_per_kg_per_day: float = 1.5
+    # Biology
+    biology_on: bool = True
+    Pmax: float = 5.0e-7
+    Km_C: float = 1.0e-2
+    Tref: float = 15.0
+    Q10: float = 2.0
+    tau_remin_days: float = 60.0
+    G0: float = 0.0
 
 
-PARAMS = ModelParameters()
+# Backwards-compatible alias used by earlier scaffold code.
+ModelParameters = Params
+PARAMS = Params()
