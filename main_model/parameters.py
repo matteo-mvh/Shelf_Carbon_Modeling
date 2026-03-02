@@ -35,7 +35,7 @@ class Params:
     # ---- Integration settings ----
     years: float = 5.0
     dt_output: float = 24 * 3600
-    plot_last_year_only: bool = True
+    plot_last_year_only: bool = False
 
     # ---- Initial conditions ----
     pCO2_sw_init: float = 300.0
