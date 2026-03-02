@@ -24,7 +24,7 @@ from main_model.modules.carbonate_solver import (
     speciate_from_dic_ta,
     ta_from_salinity,
 )
-from main_model.modules.gas_exchange import co2_flux_and_tendency, k_wanninkhof92
+from main_model.modules.gas_exchange import co2_flux_and_tendency
 from main_model.modules.plotting import save_diagnostics_plot
 from main_model.modules.plotting import save_biology_comparison_plot
 
@@ -283,9 +283,13 @@ def run(p: Params):
         pH_guess = pH[i]
 
     pco2_sw = co2 / K0
-    k_series = np.array([k_wanninkhof92(p.U10, Ti) for Ti in T])
     co2_eq = K0 * p.pCO2_air
-    F = k_series * (co2 - co2_eq)
+    F = np.array(
+        [
+            co2_flux_and_tendency(co2_i, co2_eq_i, p.U10, Ti, h_i)[0]
+            for co2_i, co2_eq_i, Ti, h_i in zip(co2, co2_eq, T, mld)
+        ]
+    )
 
     if p.biology_on:
         P_glucose = np.array(
@@ -378,9 +382,20 @@ def main():
     print(f"Final-day pCO2_sw (ON)    : {out_on['pCO2_sw'][-1]:.3f} uatm")
     print(f"Final-day pCO2_sw (OFF)   : {out_off['pCO2_sw'][-1]:.3f} uatm")
     print("")
-    print(f"Air->sea uptake (biology OFF): {uptake_off_last:.6e} mol C m^-2 yr^-1")
-    print(f"Air->sea uptake (biology ON) : {uptake_on_last:.6e} mol C m^-2 yr^-1")
-    print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 yr^-1")
+    flux_abs_on = np.abs(out_on["F"])
+    flux_abs_off = np.abs(out_off["F"])
+    print(
+        "|F| diagnostics (ON) [mol C m^-2 s^-1]: "
+        f"min={np.min(flux_abs_on):.3e}, mean={np.mean(flux_abs_on):.3e}, max={np.max(flux_abs_on):.3e}"
+    )
+    print(
+        "|F| diagnostics (OFF) [mol C m^-2 s^-1]: "
+        f"min={np.min(flux_abs_off):.3e}, mean={np.mean(flux_abs_off):.3e}, max={np.max(flux_abs_off):.3e}"
+    )
+    print("")
+    print(f"Air->sea uptake (biology OFF): {uptake_off_last:.6e} mol C m^-2 (integrated over last year)")
+    print(f"Air->sea uptake (biology ON) : {uptake_on_last:.6e} mol C m^-2 (integrated over last year)")
+    print(f"Biology effect (ON - OFF)   : {delta_uptake_last:.6e} mol C m^-2 (integrated over last year)")
     print(f"Uptake enhancement factor (ON / OFF): {uptake_on_last / uptake_off_last:.3f}")
     print("")
     print(f"ΔDOC over last year (ON): {drawdown_amount_last_year:.6e} mol C m^-3")
