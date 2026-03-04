@@ -2,6 +2,10 @@
 
 A lightweight repository for developing and testing simplified dissolved inorganic carbon (DIC) transport equations before implementation in **DHI MIKE / Ecolab** workflows.
 
+## Link to PDF Project Documentation
+
+https://www.overleaf.com/read/qvfpkvxcncrd#6ebd3d
+
 ## Purpose
 
 This project supports a Spring 2026 special course focused on hydrodynamic modeling of carbon transport on continental shelves. The repository is intended as a practical sandbox to:
