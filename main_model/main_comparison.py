@@ -182,11 +182,9 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
             lambda_r=p.lambda_r,
             gamma_l=p.gamma_l,
             gamma_s=p.gamma_s,
-            A1=p.pp_A1,
-            K1=p.pp_K1,
-            A2=p.pp_A2,
-            K2=p.pp_K2,
-            n2=p.pp_n2,
+            Pmax=p.pp_Pmax,
+            K_L=p.pp_K_L,
+            n=p.pp_n,
         )
         dDIC_bio = -fprod + fremin
     else:
@@ -305,11 +303,9 @@ def run(p: Params):
                 lambda_r=p.lambda_r,
                 gamma_l=p.gamma_l,
                 gamma_s=p.gamma_s,
-                A1=p.pp_A1,
-                K1=p.pp_K1,
-                A2=p.pp_A2,
-                K2=p.pp_K2,
-                n2=p.pp_n2,
+                Pmax=p.pp_Pmax,
+                K_L=p.pp_K_L,
+                n=p.pp_n,
             )
 
     doc = ldoc + sdoc + rdoc

@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 
-def production_irradiance_pp(light, A1, K1, A2, K2, n2):
-    """Empirical PP(L) relationship [mol C m^-3]."""
+def production_irradiance_pp(light, Pmax, K_L, n):
+    """Hill-type PP(L) relationship [mol C m^-3]."""
     L = max(float(light), 0.0)
-    low_light = float(A1) * L / (L + max(float(K1), 1e-12))
-    hill_num = L ** float(n2)
-    hill_den = hill_num + max(float(K2), 1e-12) ** float(n2)
-    high_light = float(A2) * hill_num / max(hill_den, 1e-12)
-    return low_light + high_light
+    exponent = max(float(n), 1e-12)
+    hill_num = L**exponent
+    hill_den = hill_num + max(float(K_L), 1e-12) ** exponent
+    return float(Pmax) * hill_num / max(hill_den, 1e-12)
 
 
 def remineralization_flux(ldoc, sdoc, rdoc, lambda_l, lambda_s, lambda_r):
@@ -36,18 +35,16 @@ def tendencies(
     lambda_r,
     gamma_l,
     gamma_s,
-    A1,
-    K1,
-    A2,
-    K2,
-    n2,
+    Pmax,
+    K_L,
+    n,
 ):
     """DOC-pool tendencies and source/sink fluxes.
 
     Returns:
         dldoc_dt, dsdoc_dt, drdoc_dt, fprod, fremin
     """
-    pp_light = production_irradiance_pp(light, A1=A1, K1=K1, A2=A2, K2=K2, n2=n2)
+    pp_light = production_irradiance_pp(light, Pmax=Pmax, K_L=K_L, n=n)
     fprod = float(mu) * pp_light
 
     ppl = float(alpha_l) * fprod

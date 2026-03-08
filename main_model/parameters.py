@@ -110,11 +110,9 @@ class Params:
     # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)
 
     # Fitted production-irradiance parameters (section 6.1)
-    pp_A1: float = 2.1713
-    pp_K1: float = 99.9420
-    pp_A2: float = 5.8761
-    pp_K2: float = 463.3975
-    pp_n2: float = 4.2981
+    pp_Pmax: float = 2.196587
+    pp_K_L: float = 59.441316
+    pp_n: float = 3.566856
 
     # DOC partitioning fractions (must sum to 1)
     alpha_l: float = 0.7
