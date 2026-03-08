@@ -20,7 +20,7 @@ def _normalize_to_seasonal_range(values):
     return (values - vmin) / (vmax - vmin)
 
 
-def _apply_time_axis_format(axes, td_on, plot_last_year_only):
+def _apply_time_axis_format(axes, td, plot_last_year_only):
     """Format the shared x-axis as month labels for one-year windows, else keep day units."""
     if plot_last_year_only:
         x0 = float(np.nanmin(td))
@@ -92,16 +92,16 @@ def save_diagnostics_plot(
     mld_norm = _normalize_to_seasonal_range(outp["MLD"])
 
     ax4 = axes[4]
-    ax4.plot(td_on, temp_norm, label="Temperature (normalized)", color="tab:red")
-    ax4.plot(td_on, light_norm, label="Light (normalized)", color="tab:blue")
-    ax4.plot(td_on, mld_norm, label="MLD (normalized)", color="tab:green")
+    ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
+    ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.plot(td, mld_norm, label="MLD (normalized)", color="tab:green")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
     ax4.legend(loc="upper right")
-    _apply_time_axis_format(axes, td_on, plot_last_year_only)
+    _apply_time_axis_format(axes, td, plot_last_year_only)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
