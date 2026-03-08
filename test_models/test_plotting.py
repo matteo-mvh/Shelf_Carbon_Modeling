@@ -25,7 +25,7 @@ def _build_mock_output(n: int = 20) -> dict:
         "frac_HCO3": np.linspace(85.0, 90.0, n),
         "frac_CO3": np.linspace(8.0, 10.0, n),
         "pH": np.linspace(8.0, 8.2, n),
-        "F": np.linspace(-1e-6, 1e-6, n),
+        "F_ex": np.linspace(-1e-6, 1e-6, n),
         "T_C": np.linspace(2.0, 8.0, n),
         "Light": np.linspace(0.2, 1.0, n),
         "MLD": np.linspace(10.0, 40.0, n),
