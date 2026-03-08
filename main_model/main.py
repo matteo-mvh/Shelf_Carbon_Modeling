@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+import webbrowser
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -35,6 +36,12 @@ from main_model.modules.plotting import save_diagnostics_plot, save_biology_comp
 
 
 DEFAULT_NON_SEASONAL_MLD_METERS = 50.0
+
+
+def open_plot(path: str) -> bool:
+    """Open a saved plot file in the default viewer/browser."""
+    abs_path = os.path.abspath(path)
+    return webbrowser.open(f"file://{abs_path}")
 
 
 def seasonal_temperature(t, T_min, T_max, seasonality=True, peak_day=230.0, cycle_days=365.0):
@@ -334,6 +341,10 @@ def main():
             plot_last_year_only=params_on.plot_last_year_only,
         )
         print("Saved plot:", figure_path)
+        if open_plot(figure_path):
+            print("Opened comparison plot:", figure_path)
+        else:
+            print("Could not automatically open comparison plot:", figure_path)
     else:
         print("Skipping comparison plot because one or both integrations failed.")
         print("ON message:", out_on["message"])
