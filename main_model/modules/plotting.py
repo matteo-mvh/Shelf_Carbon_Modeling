@@ -340,3 +340,50 @@ def save_biology_comparison_plot(
     fig.savefig(path, dpi=150)
     plt.close(fig)
     return str(path)
+
+
+def save_entrainment_fitting_plot(
+    out: dict,
+    output_path: str = "results/entrainment_fitting_plot.png",
+    plot_last_year_only: bool = True,
+):
+    """Save diagnostics for MLD-driven deep-water entrainment and sinking export."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    outp = _slice_output_window(out, plot_last_year_only)
+    td = outp["t_days"]
+
+    fig, axes = plt.subplots(4, 1, figsize=(11, 12), sharex=True)
+
+    axes[0].plot(td, outp["MLD"], color="tab:green", label="MLD")
+    axes[0].set_ylabel("Depth (m)")
+    axes[0].set_title("Seasonal mixed-layer depth")
+    axes[0].grid(True, alpha=0.35)
+    axes[0].legend()
+
+    axes[1].plot(td, outp["dMLD_dt"], color="tab:orange", label="dMLD/dt")
+    axes[1].axhline(0.0, linestyle="--", color="black", lw=1)
+    axes[1].set_ylabel("m s$^{-1}$")
+    axes[1].set_title("MLD tendency (deepening > 0, shoaling < 0)")
+    axes[1].grid(True, alpha=0.35)
+    axes[1].legend()
+
+    axes[2].plot(td, outp["dDIC_entrain"], color="tab:blue", label="dDIC entrainment tendency")
+    axes[2].axhline(0.0, linestyle="--", color="black", lw=1)
+    axes[2].set_ylabel("mol C m$^{-3}$ s$^{-1}$")
+    axes[2].set_title("Entrainment fit: (dh/dt)/h · (DIC_deep - DIC)")
+    axes[2].grid(True, alpha=0.35)
+    axes[2].legend()
+
+    axes[3].plot(td, outp["F_sink_DIC"], color="tab:purple", label="Sinking export flux")
+    axes[3].set_ylabel("mol C m$^{-2}$ s$^{-1}$")
+    axes[3].set_title("Heavy-water sinking proxy during shoaling")
+    axes[3].grid(True, alpha=0.35)
+    axes[3].legend()
+
+    _apply_time_axis_format(axes, td, plot_last_year_only)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return str(path)

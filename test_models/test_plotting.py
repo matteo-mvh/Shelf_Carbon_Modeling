@@ -4,7 +4,11 @@ from pathlib import Path
 
 import numpy as np
 
-from main_model.modules.plotting import save_diagnostics_plot, save_outputs_overview_plot
+from main_model.modules.plotting import (
+    save_diagnostics_plot,
+    save_entrainment_fitting_plot,
+    save_outputs_overview_plot,
+)
 
 
 
@@ -42,6 +46,9 @@ def _build_mock_output(n: int = 20) -> dict:
         "T_C": np.linspace(2.0, 8.0, n),
         "Light": np.linspace(0.2, 1.0, n),
         "MLD": np.linspace(10.0, 40.0, n),
+        "dMLD_dt": np.linspace(-2e-5, 2e-5, n),
+        "dDIC_entrain": np.linspace(-5e-9, 5e-9, n),
+        "F_sink_DIC": np.linspace(0.0, 2e-6, n),
     }
 
 
@@ -62,5 +69,15 @@ def test_save_outputs_overview_plot_creates_expected_file(tmp_path: Path):
     out = _build_mock_output()
 
     returned_path = save_outputs_overview_plot(out, output_path=str(output_path), plot_last_year_only=True)
+
+    assert Path(returned_path).exists()
+
+
+def test_save_entrainment_fitting_plot_creates_expected_file(tmp_path: Path):
+    """Ensure entrainment fitting diagnostics render with expected output fields."""
+    output_path = tmp_path / "entrainment_fit.png"
+    out = _build_mock_output()
+
+    returned_path = save_entrainment_fitting_plot(out, output_path=str(output_path), plot_last_year_only=True)
 
     assert Path(returned_path).exists()
