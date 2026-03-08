@@ -110,9 +110,9 @@ class Params:
     # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)
 
     # Fitted production-irradiance parameters (section 6.1)
-    pp_Pmax: float = 2.196587
-    pp_K_L: float = 59.441316
-    pp_n: float = 3.566856
+    pp_Pmax: float = 2.265670
+    pp_K_L: float = 62.638907
+    pp_n: float = 3.259543
 
     # DOC partitioning fractions (must sum to 1)
     alpha_l: float = 0.7
@@ -128,12 +128,6 @@ class Params:
     gamma_l: float = 5.0e-8
     gamma_s: float = 5.0e-10
 
-    # NOTE: No deep-water entrainment terms are included in the current
-    # reduced model formulation. Deep/source-water concentration parameters
-    # were intentionally removed to keep the parameter set consistent with
-    # the governing equations used in main.py.
-
-
     # ============================================================
     # Integration settings
     # ============================================================
@@ -147,21 +141,20 @@ class Params:
     plot_last_year_only: bool = True
     # If True, diagnostics focus on final year
 
-
     # ============================================================
     # Initial conditions
     # ============================================================
 
-    pCO2_sw_init: float = 300.0
+    pCO2_sw_init: float = 400.0
     # Initial surface seawater pCO2 [µatm]
 
-    LDOC0: float = 0.0
+    LDOC0: float = 0.01
     # Initial labile DOC [mol C m^-3]
 
-    SDOC0: float = 0.0
+    SDOC0: float = 0.3
     # Initial semi-labile DOC [mol C m^-3]
 
-    RDOC0: float = 0.0
+    RDOC0: float = 0.04
     # Initial refractory DOC [mol C m^-3]
 
 
