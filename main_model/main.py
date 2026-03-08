@@ -310,6 +310,8 @@ def run(p: Params):
         "fremin": fremin,
         "pH": pH,
         "pCO2_sw": pco2_sw,
+        # Backward-compatible alias expected by plotting utilities/tests.
+        "F": F_ex,
         "F_ex": F_ex,
         "frac_CO2": frac_co2,
         "frac_HCO3": frac_hco3,
