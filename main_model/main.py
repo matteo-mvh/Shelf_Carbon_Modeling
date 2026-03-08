@@ -105,6 +105,10 @@ def rhs(t, y, p: Params, pH_guess=None):
     )
     we = max(dhdt, 0.0)
 
+    #safeguard
+    dic = max(dic, 1e-12)
+    ta_t = max(ta_t, 1e-12)
+    
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
