@@ -193,10 +193,10 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
     dDIC_bio = -fprod + fremin
 
     # Mixed-layer depth concentration-dilution effect (currently not working because TA is kept constant)
-    #dDIC_mld = -(dhdt / h_mld) * dic
-    #dLDOC_mld = -(dhdt / h_mld) * ldoc
-    #dSDOC_mld = -(dhdt / h_mld) * sdoc
-    #dRDOC_mld = -(dhdt / h_mld) * rdoc
+    dDIC_mld  = 0 # -(dhdt / h_mld) * dic
+    dLDOC_mld = 0 # -(dhdt / h_mld) * ldoc
+    dSDOC_mld = 0 # -(dhdt / h_mld) * sdoc
+    dRDOC_mld = 0 # -(dhdt / h_mld) * rdoc
 
     return [
         dDIC_flux + dDIC_bio + dDIC_mld,
