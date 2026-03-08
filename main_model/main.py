@@ -14,7 +14,11 @@ if __package__ in (None, ""):
         sys.path.insert(0, repo_root)
 
 from main_model.main_comparison import open_plot, run
-from main_model.modules.plotting import save_diagnostics_plot, save_outputs_overview_plot
+from main_model.modules.plotting import (
+    save_diagnostics_plot,
+    save_entrainment_fitting_plot,
+    save_outputs_overview_plot,
+)
 from main_model.parameters import Params
 
 
@@ -38,6 +42,13 @@ def main():
             plot_last_year_only=True,
         )
         print("Saved outputs overview plot:", overview_plot_path)
+
+        entrainment_plot_path = save_entrainment_fitting_plot(
+            out,
+            output_path="results/entrainment_fitting_plot.png",
+            plot_last_year_only=True,
+        )
+        print("Saved entrainment fitting plot:", entrainment_plot_path)
 
         if open_plot(overview_plot_path):
             print("Opened outputs overview plot:", overview_plot_path)

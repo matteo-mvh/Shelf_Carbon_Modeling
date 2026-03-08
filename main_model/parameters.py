@@ -44,6 +44,18 @@ class Params:
     mld_peak_day: float = 20.0
     # Day of year of maximum MLD [days]
 
+    deep_entrainment_dic: float = 2.35
+    # Deep-water DIC concentration used for entrainment [mol C m^-3]
+
+    deep_entrainment_ldoc: float = 0.002
+    # Deep-water LDOC concentration used for entrainment [mol C m^-3]
+
+    deep_entrainment_sdoc: float = 0.008
+    # Deep-water SDOC concentration used for entrainment [mol C m^-3]
+
+    deep_entrainment_rdoc: float = 0.020
+    # Deep-water RDOC concentration used for entrainment [mol C m^-3]
+
     
     # ============================================================
     # Seasonal temperature forcing

@@ -6,7 +6,7 @@ State vector:
 Key assumptions in this version:
 - Total alkalinity (TA) is fixed from salinity and is therefore constant
   because salinity is held constant.
-- No entrainment with deep water is included.
+- Deep-water entrainment is applied when seasonal MLD deepens.
 - Carbonate speciation is diagnosed from (DIC, TA, T, S).
 """
 
@@ -34,7 +34,11 @@ from main_model.modules.carbonate_solver import (
     ta_from_salinity,
 )
 from main_model.modules.gas_exchange import co2_flux_and_tendency
-from main_model.modules.plotting import save_diagnostics_plot, save_outputs_overview_plot
+from main_model.modules.plotting import (
+    save_diagnostics_plot,
+    save_entrainment_fitting_plot,
+    save_outputs_overview_plot,
+)
 
 
 def open_plot(path: str) -> bool:
@@ -132,7 +136,7 @@ def seasonal_mld_tendency(
     return -amplitude * omega * np.sin(omega * (t - peak_seconds))
 
 def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
-    """RHS for y=[DIC, LDOC, SDOC, RDOC] with fixed TA and no entrainment."""
+    """RHS for y=[DIC, LDOC, SDOC, RDOC] with fixed TA and MLD-driven entrainment."""
     dic, ldoc, sdoc, rdoc = [float(v) for v in y]
 
     dic = max(dic, 1e-12)
@@ -192,17 +196,21 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
     )
     dDIC_bio = -fprod + fremin
 
-    # Mixed-layer depth concentration-dilution effect (currently not working because TA is kept constant)
-    dDIC_mld  = 0 # -(dhdt / h_mld) * dic
-    dLDOC_mld = 0 # -(dhdt / h_mld) * ldoc
-    dSDOC_mld = 0 # -(dhdt / h_mld) * sdoc
-    dRDOC_mld = 0 # -(dhdt / h_mld) * rdoc
+    deepening_rate = max(dhdt, 0.0) if p.mld_seasonality else 0.0
+    if h_mld <= 0.0:
+        raise ValueError("Mixed-layer depth must remain strictly positive.")
+
+    entrainment_factor = deepening_rate / h_mld
+    dDIC_entrain = entrainment_factor * (p.deep_entrainment_dic - dic)
+    dLDOC_entrain = entrainment_factor * (p.deep_entrainment_ldoc - ldoc)
+    dSDOC_entrain = entrainment_factor * (p.deep_entrainment_sdoc - sdoc)
+    dRDOC_entrain = entrainment_factor * (p.deep_entrainment_rdoc - rdoc)
 
     return [
-        dDIC_flux + dDIC_bio + dDIC_mld,
-        dldoc_bio + dLDOC_mld,
-        dsdoc_bio + dSDOC_mld,
-        drdoc_bio + dRDOC_mld,
+        dDIC_flux + dDIC_bio + dDIC_entrain,
+        dldoc_bio + dLDOC_entrain,
+        dsdoc_bio + dSDOC_entrain,
+        drdoc_bio + dRDOC_entrain,
     ], pH
 
 
@@ -258,6 +266,9 @@ def run(p: Params):
     mld = seasonal_mld(
         sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days, p.mld
     )
+    dhdt = seasonal_mld_tendency(
+        sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+    )
 
     dic, ldoc, sdoc, rdoc = sol.y
 
@@ -306,6 +317,17 @@ def run(p: Params):
             n=p.pp_n,
         )
 
+    with np.errstate(divide="ignore", invalid="ignore"):
+        entrainment_rate = np.where(mld > 0.0, np.maximum(dhdt, 0.0) / mld, 0.0)
+
+    dDIC_entrain = entrainment_rate * (p.deep_entrainment_dic - dic)
+    dLDOC_entrain = entrainment_rate * (p.deep_entrainment_ldoc - ldoc)
+    dSDOC_entrain = entrainment_rate * (p.deep_entrainment_sdoc - sdoc)
+    dRDOC_entrain = entrainment_rate * (p.deep_entrainment_rdoc - rdoc)
+
+    sinking_rate = np.where(dhdt < 0.0, -dhdt, 0.0)
+    F_sink_DIC = sinking_rate * dic
+
     doc = ldoc + sdoc + rdoc
     ta = np.full_like(dic, ta_const)
 
@@ -322,6 +344,7 @@ def run(p: Params):
         "T_C": T,
         "Light": light,
         "MLD": mld,
+        "dMLD_dt": dhdt,
         "CO2": co2,
         "HCO3": hco3,
         "CO3": co3,
@@ -338,6 +361,11 @@ def run(p: Params):
         "pCO2_air": np.full_like(pco2_sw, p.pCO2_air, dtype=float),
         "delta_pCO2": pco2_sw - p.pCO2_air,
         "F_ex": F_ex,
+        "dDIC_entrain": dDIC_entrain,
+        "dLDOC_entrain": dLDOC_entrain,
+        "dSDOC_entrain": dSDOC_entrain,
+        "dRDOC_entrain": dRDOC_entrain,
+        "F_sink_DIC": F_sink_DIC,
         "frac_CO2": frac_co2,
         "frac_HCO3": frac_hco3,
         "frac_CO3": frac_co3,
@@ -365,6 +393,13 @@ def main_comparison():
             plot_last_year_only=True,
         )
         print("Saved outputs overview plot:", overview_plot_path)
+
+        entrainment_plot_path = save_entrainment_fitting_plot(
+            out,
+            output_path="results/entrainment_fitting_plot.png",
+            plot_last_year_only=True,
+        )
+        print("Saved entrainment fitting plot:", entrainment_plot_path)
 
         if open_plot(overview_plot_path):
             print("Opened outputs overview plot:", overview_plot_path)

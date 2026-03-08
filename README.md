@@ -81,7 +81,7 @@ The `main_model` combines the same process families in a single, modular coupled
 
 Compared to `test_models`, the `main_model` is designed to represent the full system together, with additional forcing and diagnostics in one place.
 
-The current coupled formulation uses **fixed total alkalinity (TA)** diagnosed from salinity and removes **deep-water entrainment terms**, so carbonate chemistry is solved from `(DIC, TA, T, S)` at each step.
+The current coupled formulation uses **fixed total alkalinity (TA)** diagnosed from salinity and includes **MLD-driven deep-water entrainment** during mixed-layer deepening, while carbonate chemistry is solved from `(DIC, TA, T, S)` at each step.
 
 ## Forcing parameters (current status)
 
@@ -91,7 +91,7 @@ As of now, the primary forcing parameters are:
 2. **Light** — seasonal forcing used in biological production limitations.
 3. **MLD (Mixed Layer Depth)** — controls flux-to-concentration conversion and can be fixed or seasonal with its own toggle.
 
-> Note: one shared `seasonality` switch controls both temperature and light forcing. MLD has a separate seasonality toggle, and its tendency contributes concentration-dilution terms via `-(dh/dt)/h`. Entrainment/source-water exchange is not included in the reduced formulation.
+> Note: one shared `seasonality` switch controls both temperature and light forcing. MLD has a separate seasonality toggle, and positive `dh/dt` triggers deep-water entrainment via `(dh/dt)/h * (C_deep - C_surface)`. A sinking-export diagnostic is also reported during shoaling (`dh/dt < 0`).
 
 ## Typical workflow
 
