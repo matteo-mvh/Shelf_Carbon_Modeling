@@ -26,11 +26,10 @@ class Params:
     # Atmospheric partial pressure of CO2 [µatm]
 
     
-    # ============================================================
-    # Seasonal MLD forcing
-    # ============================================================
+    mld: float = 50.0
+    # Fixed mixed-layer depth [m]
 
-    mld_seasonality: bool = False #not functional right now!
+    mld_seasonality: bool = False
     # Toggle seasonal mixed-layer-depth forcing
 
     mld_winter: float = 100.0
@@ -48,7 +47,7 @@ class Params:
     # ============================================================
 
     seasonality: bool = True
-    # Toggle seasonal temperature forcing
+    # Toggle all seasonal forcing (temperature + light)
 
     T_min: float = 2.0
     # Minimum surface temperature [°C]
@@ -62,14 +61,9 @@ class Params:
     temperature_peak_day: float = 190.0
     # Day of year of maximum SST [days]
 
-
-
     # ============================================================
     # Seasonal light forcing for photosynthesis
     # ============================================================
-
-    light_seasonality: bool = True
-    # Toggle seasonal light forcing
 
     light_phase_days: float = 0.0
     # Phase shift for light forcing [days]
@@ -102,9 +96,6 @@ class Params:
     # ============================================================
     # Biology and DOC parameters (reduced DIC-DOC formulation)
     # ============================================================
-
-    biology_on: bool = True
-    # Toggle biological processes on/off
 
     mu_bio: float = 1.0e-8
     # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)

@@ -34,10 +34,7 @@ from main_model.modules.carbonate_solver import (
     ta_from_salinity,
 )
 from main_model.modules.gas_exchange import co2_flux_and_tendency
-from main_model.modules.plotting import save_diagnostics_plot, save_biology_comparison_plot, save_outputs_overview_plot
-
-
-DEFAULT_NON_SEASONAL_MLD_METERS = 50.0
+from main_model.modules.plotting import save_diagnostics_plot, save_outputs_overview_plot
 
 
 def open_plot(path: str) -> bool:
@@ -102,10 +99,12 @@ def seasonal_light(
     return winter_light + (summer_light - winter_light) * light_norm
 
 
-def seasonal_mld(t, seasonality=True, winter_depth=80.0, summer_depth=20.0, peak_day=15.0, cycle_days=365.0):
+
+
+def seasonal_mld(t, seasonality=False, winter_depth=80.0, summer_depth=20.0, peak_day=15.0, cycle_days=365.0, fixed_depth=50.0):
     t = np.atleast_1d(t).astype(float)
     if not seasonality:
-        return np.full_like(t, DEFAULT_NON_SEASONAL_MLD_METERS)
+        return np.full_like(t, fixed_depth)
 
     period = cycle_days * 24.0 * 3600.0
     peak_seconds = peak_day * 24.0 * 3600.0
@@ -113,7 +112,15 @@ def seasonal_mld(t, seasonality=True, winter_depth=80.0, summer_depth=20.0, peak
     return summer_depth + (winter_depth - summer_depth) * mld_norm
 
 
-def seasonal_mld_tendency(t, seasonality=True, winter_depth=80.0, summer_depth=20.0, peak_day=15.0, cycle_days=365.0):
+
+def seasonal_mld_tendency(
+    t,
+    seasonality=False,
+    winter_depth=80.0,
+    summer_depth=20.0,
+    peak_day=15.0,
+    cycle_days=365.0,
+):
     t = np.atleast_1d(t).astype(float)
     if not seasonality:
         return np.zeros_like(t)
@@ -123,7 +130,6 @@ def seasonal_mld_tendency(t, seasonality=True, winter_depth=80.0, summer_depth=2
     omega = 2.0 * np.pi / period
     amplitude = 0.5 * (winter_depth - summer_depth)
     return -amplitude * omega * np.sin(omega * (t - peak_seconds))
-
 
 def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
     """RHS for y=[DIC, LDOC, SDOC, RDOC] with fixed TA and no entrainment."""
@@ -142,7 +148,7 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
     light = float(
         seasonal_light(
             t,
-            p.light_seasonality,
+            p.seasonality,
             p.light_phase_days,
             p.light_peak_day,
             p.light_sharpness,
@@ -153,7 +159,7 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
     )
     h_mld = float(
         seasonal_mld(
-            t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+            t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days, p.mld
         )[0]
     )
     dhdt = float(
@@ -161,39 +167,32 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
             t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
         )[0]
     )
-
     co2, _, _, pH = speciate_from_dic_ta(dic, ta_const, T, p.S, pH_guess=pH_guess)
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
     _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, h_mld)
 
-    if p.biology_on:
-        dldoc_bio, dsdoc_bio, drdoc_bio, fprod, fremin = bio_tendencies(
-            light=light,
-            ldoc=ldoc,
-            sdoc=sdoc,
-            rdoc=rdoc,
-            mu=p.mu_bio,
-            alpha_l=p.alpha_l,
-            alpha_s=p.alpha_s,
-            alpha_r=p.alpha_r,
-            lambda_l=p.lambda_l,
-            lambda_s=p.lambda_s,
-            lambda_r=p.lambda_r,
-            gamma_l=p.gamma_l,
-            gamma_s=p.gamma_s,
-            Pmax=p.pp_Pmax,
-            K_L=p.pp_K_L,
-            n=p.pp_n,
-        )
-        dDIC_bio = -fprod + fremin
-    else:
-        dldoc_bio = 0.0
-        dsdoc_bio = 0.0
-        drdoc_bio = 0.0
-        dDIC_bio = 0.0
+    dldoc_bio, dsdoc_bio, drdoc_bio, fprod, fremin = bio_tendencies(
+        light=light,
+        ldoc=ldoc,
+        sdoc=sdoc,
+        rdoc=rdoc,
+        mu=p.mu_bio,
+        alpha_l=p.alpha_l,
+        alpha_s=p.alpha_s,
+        alpha_r=p.alpha_r,
+        lambda_l=p.lambda_l,
+        lambda_s=p.lambda_s,
+        lambda_r=p.lambda_r,
+        gamma_l=p.gamma_l,
+        gamma_s=p.gamma_s,
+        Pmax=p.pp_Pmax,
+        K_L=p.pp_K_L,
+        n=p.pp_n,
+    )
+    dDIC_bio = -fprod + fremin
 
-    # Mixed-layer depth concentration effect only
+    # Mixed-layer depth concentration-dilution effect
     dDIC_mld = -(dhdt / h_mld) * dic
     dLDOC_mld = -(dhdt / h_mld) * ldoc
     dSDOC_mld = -(dhdt / h_mld) * sdoc
@@ -248,7 +247,7 @@ def run(p: Params):
     )
     light = seasonal_light(
         sol.t,
-        p.light_seasonality,
+        p.seasonality,
         p.light_phase_days,
         p.light_peak_day,
         p.light_sharpness,
@@ -257,7 +256,7 @@ def run(p: Params):
         p.seasonal_cycle_days,
     )
     mld = seasonal_mld(
-        sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+        sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days, p.mld
     )
 
     dic, ldoc, sdoc, rdoc = sol.y
@@ -287,26 +286,25 @@ def run(p: Params):
     pp_light = np.zeros_like(light)
     fremin = np.zeros_like(light)
 
-    if p.biology_on:
-        for i, (li, ld_i, sd_i, rd_i) in enumerate(zip(light, ldoc, sdoc, rdoc)):
-            _, _, _, pp_light[i], fremin[i] = bio_tendencies(
-                light=li,
-                ldoc=max(ld_i, 0.0),
-                sdoc=max(sd_i, 0.0),
-                rdoc=max(rd_i, 0.0),
-                mu=p.mu_bio,
-                alpha_l=p.alpha_l,
-                alpha_s=p.alpha_s,
-                alpha_r=p.alpha_r,
-                lambda_l=p.lambda_l,
-                lambda_s=p.lambda_s,
-                lambda_r=p.lambda_r,
-                gamma_l=p.gamma_l,
-                gamma_s=p.gamma_s,
-                Pmax=p.pp_Pmax,
-                K_L=p.pp_K_L,
-                n=p.pp_n,
-            )
+    for i, (li, ld_i, sd_i, rd_i) in enumerate(zip(light, ldoc, sdoc, rdoc)):
+        _, _, _, pp_light[i], fremin[i] = bio_tendencies(
+            light=li,
+            ldoc=max(ld_i, 0.0),
+            sdoc=max(sd_i, 0.0),
+            rdoc=max(rd_i, 0.0),
+            mu=p.mu_bio,
+            alpha_l=p.alpha_l,
+            alpha_s=p.alpha_s,
+            alpha_r=p.alpha_r,
+            lambda_l=p.lambda_l,
+            lambda_s=p.lambda_s,
+            lambda_r=p.lambda_r,
+            gamma_l=p.gamma_l,
+            gamma_s=p.gamma_s,
+            Pmax=p.pp_Pmax,
+            K_L=p.pp_K_L,
+            n=p.pp_n,
+        )
 
     doc = ldoc + sdoc + rdoc
     ta = np.full_like(dic, ta_const)
@@ -347,66 +345,36 @@ def run(p: Params):
 
 
 def main_comparison():
-    params_on = Params(biology_on=True)
-    params_off = Params(biology_on=False)
+    params = Params()
 
-    out_on = run(params_on)
-    out_off = run(params_off)
+    out = run(params)
 
-    print("Run success (ON):", out_on["success"])
-    print("Run success (OFF):", out_off["success"])
+    print("Run success:", out["success"])
 
-    if out_on["success"] and out_off["success"]:
-        figure_path = save_biology_comparison_plot(
-            out_on,
-            out_off,
-            plot_last_year_only=params_on.plot_last_year_only,
-        )
-        print("Saved plot:", figure_path)
-        if open_plot(figure_path):
-            print("Opened comparison plot:", figure_path)
-        else:
-            print("Could not automatically open comparison plot:", figure_path)
-    else:
-        print("Skipping comparison plot because one or both integrations failed.")
-        print("ON message:", out_on["message"])
-        print("OFF message:", out_off["message"])
-
-    if out_on["success"]:
+    if out["success"]:
         single_run_plot_path = save_diagnostics_plot(
-            out_on,
-            output_path="results/main_model_diagnostics_on.png",
-            plot_last_year_only=params_on.plot_last_year_only,
+            out,
+            output_path="results/main_model_diagnostics.png",
+            plot_last_year_only=params.plot_last_year_only,
         )
-        print("Saved single-run plot (ON):", single_run_plot_path)
+        print("Saved single-run plot:", single_run_plot_path)
 
-        overview_plot_path_on = save_outputs_overview_plot(
-            out_on,
-            output_path="results/main_model_outputs_overview_on.png",
+        overview_plot_path = save_outputs_overview_plot(
+            out,
+            output_path="results/main_model_outputs_overview.png",
             plot_last_year_only=True,
         )
-        print("Saved outputs overview plot (ON):", overview_plot_path_on)
+        print("Saved outputs overview plot:", overview_plot_path)
+
+        if open_plot(overview_plot_path):
+            print("Opened outputs overview plot:", overview_plot_path)
+        elif open_plot(single_run_plot_path):
+            print("Opened diagnostics plot:", single_run_plot_path)
     else:
-        print("Skipping ON diagnostics plot because ON integration failed.")
+        print("Skipping diagnostics plot because integration failed.")
+        print("Message:", out["message"])
 
-    if out_off["success"]:
-        single_run_plot_off_path = save_diagnostics_plot(
-            out_off,
-            output_path="results/main_model_diagnostics_off.png",
-            plot_last_year_only=params_off.plot_last_year_only,
-        )
-        print("Saved single-run plot (OFF):", single_run_plot_off_path)
-
-        overview_plot_path_off = save_outputs_overview_plot(
-            out_off,
-            output_path="results/main_model_outputs_overview_off.png",
-            plot_last_year_only=True,
-        )
-        print("Saved outputs overview plot (OFF):", overview_plot_path_off)
-    else:
-        print("Skipping OFF diagnostics plot because OFF integration failed.")
-
-    return out_on, out_off
+    return out
 
 
 if __name__ == "__main__":

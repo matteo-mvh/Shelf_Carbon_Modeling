@@ -89,9 +89,9 @@ As of now, the primary forcing parameters are:
 
 1. **Temperature** — seasonal forcing that modifies solubility, speciation, and gas transfer sensitivity.
 2. **Light** — seasonal forcing used in biological production limitations.
-3. **MLD (Mixed Layer Depth)** — represented by `h` and controls dilution and flux-to-concentration conversion.
+3. **MLD (Mixed Layer Depth)** — controls flux-to-concentration conversion and can be fixed or seasonal with its own toggle.
 
-> Note: in the current implementation, temperature and light are seasonally varying forcings. MLD can be held fixed or seasonally forced, and its tendency contributes concentration-dilution effects via `-(dh/dt)/h` terms. Entrainment/source-water exchange is not included in the reduced formulation.
+> Note: one shared `seasonality` switch controls both temperature and light forcing. MLD has a separate seasonality toggle, and its tendency contributes concentration-dilution terms via `-(dh/dt)/h`. Entrainment/source-water exchange is not included in the reduced formulation.
 
 ## Typical workflow
 
