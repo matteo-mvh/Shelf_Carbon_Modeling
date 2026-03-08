@@ -94,11 +94,13 @@ def _find_ph_bracket_from_guess(residual, pH_guess, x_min=3.0, x_max=11.0):
 
 
 def speciate_from_dic_ta(dic, ta, T, S, pH_guess=None):
-    """Given DIC and TA (mol m^-3), solve pH and carbonate species."""
+    """Given DIC and TA (mol m^-3), solve pH and carbonate species.
+
+    Uses the simplified TA closure:
+    TA = [HCO3-] + 2[CO3--] + [OH-] - [H+].
+    """
     K1, K2 = K1_K2(T, S)
     Kw = Kw_const(T)
-    Kb = Kb_dickson(T, S)
-    TB = total_boron(S)
 
     def residual(pH):
         H = 10 ** (-pH)
@@ -106,9 +108,8 @@ def speciate_from_dic_ta(dic, ta, T, S, pH_guess=None):
         hco3 = co2 * K1 / H
         co3 = co2 * K1 * K2 / H**2
         oh = Kw / H
-        boh4 = TB * Kb / (Kb + H)
-        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
-        return ta_calc - ta
+        ta_calc = hco3 + 2 * co3 + oh - H
+        return float(ta) - ta_calc
 
     if pH_guess is not None:
         bracket = _find_ph_bracket_from_guess(residual, pH_guess)
@@ -135,8 +136,6 @@ def initialize_dic_from_pco2(pco2, ta, T, S):
     K0 = solubility_co2_weiss74(T, S)
     K1, K2 = K1_K2(T, S)
     Kw = Kw_const(T)
-    Kb = Kb_dickson(T, S)
-    TB = total_boron(S)
     co2 = K0 * pco2
 
     def residual(pH):
@@ -144,9 +143,8 @@ def initialize_dic_from_pco2(pco2, ta, T, S):
         hco3 = co2 * K1 / H
         co3 = co2 * K1 * K2 / H**2
         oh = Kw / H
-        boh4 = TB * Kb / (Kb + H)
-        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
-        return ta_calc - ta
+        ta_calc = hco3 + 2 * co3 + oh - H
+        return float(ta) - ta_calc
 
     a, b = bracket_root(residual)
     pH = brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
