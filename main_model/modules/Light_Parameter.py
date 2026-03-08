@@ -17,6 +17,7 @@ import re
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 
 @dataclass(frozen=True)
@@ -281,6 +282,7 @@ def fit_light_parameters_for_params(n_bins: int = 20):
         mask = (L_data >= bins[i]) & (L_data < bins[i + 1])
         if np.any(mask):
             P_binned[i] = np.mean(P_data[mask])
+            P_binned[i] = np.percentile(P_data[mask], 50)
 
     valid = np.isfinite(P_binned)
 
@@ -296,12 +298,57 @@ def fit_light_parameters_for_params(n_bins: int = 20):
         maxfev=100000,
     )
 
-    return LightFitResult(
-        pp_Pmax=float(popt[0]),
-        pp_K_L=float(popt[1]),
-        pp_n=float(popt[2]),
+    Pmax_fit, K_L_fit, n_fit = popt
+
+    # ============================================================
+    # Plot data + bins + fitted Hill curve
+    # ============================================================
+    L_fit = np.linspace(0.0, np.max(L_data), 1000)
+    P_fit = hill(L_fit, Pmax_fit, K_L_fit, n_fit)
+
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(
+        L_data,
+        P_data,
+        "o",
+        ms=3,
+        alpha=0.25,
+        color="tab:blue",
+        label="NPZDO output points",
     )
 
+    plt.plot(
+        bin_centers[valid],
+        P_binned[valid],
+        "x",
+        ms=7,
+        color="black",
+        label="Binned means",
+    )
+
+    plt.plot(
+        L_fit,
+        P_fit,
+        lw=2.5,
+        color="black",
+        label=f"Hill fit (n={n_fit:.2f})",
+    )
+
+    plt.xlabel("Surface light $L_0$ [$\\mu$mol photons m$^{-2}$ s$^{-1}$]")
+    plt.ylabel("Depth-averaged phytoplankton $\\overline{P}$ [mmol C m$^{-3}$]")
+    plt.title("NPZDO-derived PP(L) calibration")
+    plt.grid(True, alpha=0.3)
+    plt.xlim([min(L_fit),max(L_fit)])
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return LightFitResult(
+        pp_Pmax=float(Pmax_fit),
+        pp_K_L=float(K_L_fit),
+        pp_n=float(n_fit),
+    )
 
 def format_params_block(result: LightFitResult) -> str:
     """Return ready-to-paste lines for the Params PP(L) section."""
@@ -312,10 +359,17 @@ def format_params_block(result: LightFitResult) -> str:
     )
 
 
-def apply_fitted_light_parameters_to_file(parameters_path: str | Path = "main_model/parameters.py") -> LightFitResult:
+def apply_fitted_light_parameters_to_file(parameters_path: str | Path | None = None) -> LightFitResult:
     """Fit PP(L) coefficients and overwrite pp_* defaults in parameters.py."""
     result = fit_light_parameters_for_params()
-    path = Path(parameters_path)
+
+    if parameters_path is None:
+        # Light_Parameter.py is in main_model/modules/
+        # parameters.py is in main_model/
+        path = Path(__file__).resolve().parents[1] / "parameters.py"
+    else:
+        path = Path(parameters_path).resolve()
+
     text = path.read_text(encoding="utf-8")
 
     replacements = {
