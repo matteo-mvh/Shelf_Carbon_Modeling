@@ -47,6 +47,9 @@ class Params:
     deep_entrainment_dic: float = 2.35
     # Deep-water DIC concentration used for entrainment [mol C m^-3]
 
+    deep_entrainment_ta: float = 2.50
+    # Deep-water TA concentration used for entrainment [mol m^-3]
+
     deep_entrainment_ldoc: float = 0.002
     # Deep-water LDOC concentration used for entrainment [mol C m^-3]
 

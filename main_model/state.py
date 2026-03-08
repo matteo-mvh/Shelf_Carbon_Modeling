@@ -5,11 +5,11 @@ from dataclasses import dataclass
 class State:
     # Prognostic states
     DIC: float
+    TA: float
     LDOC: float
     SDOC: float
     RDOC: float
 
-    # Diagnostics / prescribed fields
-    TA_const: float
+    # Diagnostics
     pCO2_sw: float = float("nan")
     DOC: float = float("nan")

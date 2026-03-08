@@ -1,13 +1,11 @@
 """Main integration script for the modular surface-ocean carbon box model.
 
 State vector:
-    y = [DIC, LDOC, SDOC, RDOC]
+    y = [DIC, TA, LDOC, SDOC, RDOC]
 
 Key assumptions in this version:
-- Total alkalinity (TA) is fixed from salinity and is therefore constant
-  because salinity is held constant.
 - Deep-water entrainment is applied when seasonal MLD deepens.
-- Carbonate speciation is diagnosed from (DIC, TA, T, S).
+- Carbonate speciation is diagnosed from prognostic (DIC, TA, T, S).
 """
 
 from __future__ import annotations
@@ -135,9 +133,9 @@ def seasonal_mld_tendency(
     amplitude = 0.5 * (winter_depth - summer_depth)
     return -amplitude * omega * np.sin(omega * (t - peak_seconds))
 
-def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
-    """RHS for y=[DIC, LDOC, SDOC, RDOC] with fixed TA and MLD-driven entrainment."""
-    dic, ldoc, sdoc, rdoc = [float(v) for v in y]
+def rhs(t, y, p: Params, pH_guess=None):
+    """RHS for y=[DIC, TA, LDOC, SDOC, RDOC] with MLD-driven entrainment."""
+    dic, ta, ldoc, sdoc, rdoc = [float(v) for v in y]
 
     dic = max(dic, 1e-12)
     ldoc = max(ldoc, 0.0)
@@ -171,7 +169,7 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
             t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
         )[0]
     )
-    co2, _, _, pH = speciate_from_dic_ta(dic, ta_const, T, p.S, pH_guess=pH_guess)
+    co2, _, _, pH = speciate_from_dic_ta(dic, ta, T, p.S, pH_guess=pH_guess)
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
     _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, h_mld)
@@ -203,32 +201,33 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
 
     entrainment_factor = deepening_rate / h_mld
     dDIC_entrain = entrainment_factor * (p.deep_entrainment_dic - dic)
+    dTA_entrain = entrainment_factor * (p.deep_entrainment_ta - ta)
     dLDOC_entrain = entrainment_factor * (p.deep_entrainment_ldoc - ldoc)
     dSDOC_entrain = entrainment_factor * (p.deep_entrainment_sdoc - sdoc)
     dRDOC_entrain = entrainment_factor * (p.deep_entrainment_rdoc - rdoc)
 
     return [
         dDIC_flux + dDIC_bio + dDIC_entrain,
+        dTA_entrain,
         dldoc_bio + dLDOC_entrain,
         dsdoc_bio + dSDOC_entrain,
         drdoc_bio + dRDOC_entrain,
     ], pH
 
 
-def initialize_state(p: Params, ta_const: float):
+def initialize_state(p: Params):
     T0 = float(
         seasonal_temperature(
             0.0, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days
         )[0]
     )
-    dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta_const, T0, p.S)
-    return [float(dic0), float(p.LDOC0), float(p.SDOC0), float(p.RDOC0)]
+    ta0 = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+    dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta0, T0, p.S)
+    return [float(dic0), float(ta0), float(p.LDOC0), float(p.SDOC0), float(p.RDOC0)]
 
 
 def run(p: Params):
-    ta_const = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
-
-    y0 = initialize_state(p, ta_const)
+    y0 = initialize_state(p)
     t_end = p.years * 365.0 * 24.0 * 3600.0
     n_out = int(round(t_end / p.dt_output)) + 1
     t_eval = np.linspace(0.0, t_end, n_out)
@@ -236,7 +235,7 @@ def run(p: Params):
     ph_cache = {"value": 8.1}
 
     def rhs_cached(t, y):
-        dydt, pH = rhs(t, y, p, ta_const=ta_const, pH_guess=ph_cache["value"])
+        dydt, pH = rhs(t, y, p, pH_guess=ph_cache["value"])
         ph_cache["value"] = pH
         return dydt
 
@@ -271,7 +270,7 @@ def run(p: Params):
         sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
     )
 
-    dic, ldoc, sdoc, rdoc = sol.y
+    dic, ta, ldoc, sdoc, rdoc = sol.y
 
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
@@ -282,7 +281,7 @@ def run(p: Params):
     pH_guess = ph_cache["value"]
     for i, Ti in enumerate(T):
         co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(
-            max(dic[i], 1e-12), ta_const, float(Ti), p.S, pH_guess=pH_guess
+            max(dic[i], 1e-12), max(ta[i], 1e-12), float(Ti), p.S, pH_guess=pH_guess
         )
         pH_guess = pH[i]
 
@@ -323,6 +322,7 @@ def run(p: Params):
         entrainment_rate = np.where(mld > 0.0, np.maximum(dhdt, 0.0) / mld, 0.0)
 
     dDIC_entrain = entrainment_rate * (p.deep_entrainment_dic - dic)
+    dTA_entrain = entrainment_rate * (p.deep_entrainment_ta - ta)
     dLDOC_entrain = entrainment_rate * (p.deep_entrainment_ldoc - ldoc)
     dSDOC_entrain = entrainment_rate * (p.deep_entrainment_sdoc - sdoc)
     dRDOC_entrain = entrainment_rate * (p.deep_entrainment_rdoc - rdoc)
@@ -331,7 +331,6 @@ def run(p: Params):
     F_sink_DIC = sinking_rate * dic
 
     doc = ldoc + sdoc + rdoc
-    ta = np.full_like(dic, ta_const)
 
     with np.errstate(divide="ignore", invalid="ignore"):
         frac_co2 = 100.0 * co2 / dic
@@ -364,6 +363,7 @@ def run(p: Params):
         "delta_pCO2": pco2_sw - p.pCO2_air,
         "F_ex": F_ex,
         "dDIC_entrain": dDIC_entrain,
+        "dTA_entrain": dTA_entrain,
         "dLDOC_entrain": dLDOC_entrain,
         "dSDOC_entrain": dSDOC_entrain,
         "dRDOC_entrain": dRDOC_entrain,
