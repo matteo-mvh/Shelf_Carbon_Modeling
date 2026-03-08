@@ -41,6 +41,15 @@ def _slice_output_window(out: dict, plot_last_year_only: bool):
     return {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out.items()}
 
 
+def _legend_labels_with_percentages(labels, values):
+    """Return legend labels formatted as `name (xx.x%)` from pie-slice values."""
+    values = np.asarray(values, dtype=float)
+    total = np.nansum(values)
+    if not np.isfinite(total) or total <= 0.0:
+        return [f"{label} (n/a)" for label in labels]
+    return [f"{label} ({(100.0 * value / total):.1f}%)" for label, value in zip(labels, values)]
+
+
 def save_diagnostics_plot(
     out: dict,
     output_path: str = "results/main_model_diagnostics.png",
@@ -128,7 +137,7 @@ def save_outputs_overview_plot(
     total_carbon = outp["DIC"] + outp["DOC"]
     bio_uptake = outp["fprod"] - outp["fremin"]
 
-    fig = plt.figure(figsize=(18, 12))
+    fig = plt.figure(figsize=(18, 12), constrained_layout=True)
     grid = fig.add_gridspec(4, 2, width_ratios=[3.8, 2.0], hspace=0.35, wspace=0.25)
 
     left_axes = [fig.add_subplot(grid[i, 0]) for i in range(4)]
@@ -180,7 +189,14 @@ def save_outputs_overview_plot(
     ])
     dic_species = np.clip(dic_species, 0.0, None)
     dic_labels = ["CO2*", "HCO3-", "CO3--"]
-    ax_dic_pie.pie(dic_species, labels=dic_labels, autopct="%1.1f%%", startangle=90)
+    dic_wedges, _ = ax_dic_pie.pie(dic_species, startangle=90)
+    ax_dic_pie.legend(
+        dic_wedges,
+        _legend_labels_with_percentages(dic_labels, dic_species),
+        loc="center left",
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False,
+    )
     ax_dic_pie.set_title("Mean DIC species share\n(last year)")
 
     ax_doc_pie = fig.add_subplot(grid[1, 1])
@@ -191,7 +207,14 @@ def save_outputs_overview_plot(
     ])
     doc_species = np.clip(doc_species, 0.0, None)
     doc_labels = ["LDOC", "SDOC", "RDOC"]
-    ax_doc_pie.pie(doc_species, labels=doc_labels, autopct="%1.1f%%", startangle=90)
+    doc_wedges, _ = ax_doc_pie.pie(doc_species, startangle=90)
+    ax_doc_pie.legend(
+        doc_wedges,
+        _legend_labels_with_percentages(doc_labels, doc_species),
+        loc="center left",
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False,
+    )
     ax_doc_pie.set_title("Mean DOC species share\n(last year)")
 
     ax_stats_main = fig.add_subplot(grid[2, 1])
@@ -230,8 +253,7 @@ def save_outputs_overview_plot(
     )
     ax_stats_extra.set_title("Additional key outputs")
 
-    fig.suptitle("Shelf carbon model outputs overview", fontsize=16, y=0.995)
-    fig.tight_layout()
+    fig.suptitle("Shelf carbon model outputs overview", fontsize=16)
     fig.savefig(path, dpi=160)
     plt.close(fig)
     return str(path)
