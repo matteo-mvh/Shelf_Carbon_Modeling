@@ -3,9 +3,9 @@
 This module keeps the same NPZDO equations/forcing used in the reference script,
 stripped down to only the computations needed for light-parameter fitting.
 
-Running this module updates ``main_model/parameters.py`` with Hill parameters:
+Running this module updates ``main_model/parameters.py`` with peaked PP(L) parameters:
 
-    PP(L) = Pmax * L^n / (K_L^n + L^n)
+    PP(L) = Pmax * L^n / (K_L^n + L^n) * exp(-L / K_I)
 """
 
 from __future__ import annotations
@@ -22,11 +22,12 @@ import matplotlib.pyplot as plt
 
 @dataclass(frozen=True)
 class LightFitResult:
-    """Fitted Hill coefficients for PP(L)."""
+    """Fitted peaked-production coefficients for PP(L)."""
 
     pp_Pmax: float
     pp_K_L: float
     pp_n: float
+    pp_K_I: float
 
 
 def _build_npzdo_reference_outputs(years: float = 10.0):
@@ -261,13 +262,18 @@ def _build_npzdo_reference_outputs(years: float = 10.0):
     return L_last, P_depthavg_C
 
 
-def hill(light, Pmax, K_L, n):
-    """Hill form for PP(L) used by the carbon model."""
+def peaked_pp(light, Pmax, K_L, n, K_I):
+    """Peaked PP(L): Hill rise + exponential high-light inhibition."""
     light = np.asarray(light, dtype=float)
+    light = np.maximum(light, 0.0)
     n_eff = np.maximum(float(n), 1e-12)
-    num = light**n_eff
-    den = num + float(K_L) ** n_eff
-    return float(Pmax) * num / np.maximum(den, 1e-12)
+    K_L_eff = np.maximum(float(K_L), 1e-12)
+    K_I_eff = np.maximum(float(K_I), 1e-12)
+
+    hill_part = light**n_eff / (K_L_eff**n_eff + light**n_eff)
+    inhib_part = np.exp(-light / K_I_eff)
+
+    return float(Pmax) * hill_part * inhib_part
 
 
 def fit_light_parameters_for_params(n_bins: int = 20):
@@ -286,11 +292,11 @@ def fit_light_parameters_for_params(n_bins: int = 20):
 
     valid = np.isfinite(P_binned)
 
-    p0 = [np.nanmax(P_binned), 200.0, 2.0]
-    bounds = ([0.0, 1e-6, 0.5], [1e4, 1e4, 10.0])
+    p0 = [np.nanmax(P_binned), 200.0, 2.0, 1000.0]
+    bounds = ([0.0, 1e-6, 0.5, 1e-6], [1e4, 1e4, 10.0, 1e5])
 
     popt, _ = curve_fit(
-        hill,
+        peaked_pp,
         bin_centers[valid],
         P_binned[valid],
         p0=p0,
@@ -298,13 +304,13 @@ def fit_light_parameters_for_params(n_bins: int = 20):
         maxfev=100000,
     )
 
-    Pmax_fit, K_L_fit, n_fit = popt
+    Pmax_fit, K_L_fit, n_fit, K_I_fit = popt
 
     # ============================================================
-    # Plot data + bins + fitted Hill curve
+    # Plot data + bins + fitted peaked PP curve
     # ============================================================
     L_fit = np.linspace(0.0, np.max(L_data), 1000)
-    P_fit = hill(L_fit, Pmax_fit, K_L_fit, n_fit)
+    P_fit = peaked_pp(L_fit, Pmax_fit, K_L_fit, n_fit, K_I_fit)
 
     plt.figure(figsize=(10, 6))
 
@@ -332,7 +338,7 @@ def fit_light_parameters_for_params(n_bins: int = 20):
         P_fit,
         lw=2.5,
         color="black",
-        label=f"Hill fit (n={n_fit:.2f})",
+        label=f"Peaked fit (n={n_fit:.2f}, K_I={K_I_fit:.1f})",
     )
 
     plt.xlabel("Surface light $L_0$ [$\\mu$mol photons m$^{-2}$ s$^{-1}$]")
@@ -348,6 +354,7 @@ def fit_light_parameters_for_params(n_bins: int = 20):
         pp_Pmax=float(Pmax_fit),
         pp_K_L=float(K_L_fit),
         pp_n=float(n_fit),
+        pp_K_I=float(K_I_fit),
     )
 
 def format_params_block(result: LightFitResult) -> str:
@@ -355,7 +362,8 @@ def format_params_block(result: LightFitResult) -> str:
     return (
         f"pp_Pmax: float = {result.pp_Pmax:.6f}\n"
         f"pp_K_L: float = {result.pp_K_L:.6f}\n"
-        f"pp_n: float = {result.pp_n:.6f}"
+        f"pp_n: float = {result.pp_n:.6f}\n"
+        f"pp_K_I: float = {result.pp_K_I:.6f}"
     )
 
 
@@ -376,6 +384,7 @@ def apply_fitted_light_parameters_to_file(parameters_path: str | Path | None = N
         "pp_Pmax": result.pp_Pmax,
         "pp_K_L": result.pp_K_L,
         "pp_n": result.pp_n,
+        "pp_K_I": result.pp_K_I,
     }
 
     for key, value in replacements.items():

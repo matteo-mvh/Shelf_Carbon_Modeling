@@ -193,6 +193,7 @@ def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
         Pmax=p.pp_Pmax,
         K_L=p.pp_K_L,
         n=p.pp_n,
+        K_I=p.pp_K_I,
     )
     dDIC_bio = -fprod + fremin
 
@@ -315,6 +316,7 @@ def run(p: Params):
             Pmax=p.pp_Pmax,
             K_L=p.pp_K_L,
             n=p.pp_n,
+            K_I=p.pp_K_I,
         )
 
     with np.errstate(divide="ignore", invalid="ignore"):

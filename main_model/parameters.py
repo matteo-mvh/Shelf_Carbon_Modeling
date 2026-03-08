@@ -119,6 +119,7 @@ class Params:
     pp_Pmax: float = 2.265670
     pp_K_L: float = 62.638907
     pp_n: float = 3.259543
+    pp_K_I: float = 1000.000000
 
     # DOC partitioning fractions (must sum to 1)
     alpha_l: float = 0.7
