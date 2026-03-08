@@ -1,6 +1,6 @@
 """Single-run entry point for the modular surface-ocean carbon box model.
 
-This script runs the model with biology enabled and saves diagnostics for that run.
+This script runs the model and saves diagnostics for that run.
 """
 
 from __future__ import annotations
@@ -19,37 +19,37 @@ from main_model.parameters import Params
 
 
 def main():
-    params_on = Params(biology_on=True)
-    out_on = run(params_on)
+    params = Params()
+    out = run(params)
 
-    print("Run success (ON):", out_on["success"])
+    print("Run success:", out["success"])
 
-    if out_on["success"]:
+    if out["success"]:
         single_run_plot_path = save_diagnostics_plot(
-            out_on,
-            output_path="results/main_model_diagnostics_on.png",
-            plot_last_year_only=params_on.plot_last_year_only,
+            out,
+            output_path="results/main_model_diagnostics.png",
+            plot_last_year_only=params.plot_last_year_only,
         )
-        print("Saved single-run plot (ON):", single_run_plot_path)
+        print("Saved single-run plot:", single_run_plot_path)
 
         overview_plot_path = save_outputs_overview_plot(
-            out_on,
-            output_path="results/main_model_outputs_overview_on.png",
+            out,
+            output_path="results/main_model_outputs_overview.png",
             plot_last_year_only=True,
         )
-        print("Saved outputs overview plot (ON):", overview_plot_path)
+        print("Saved outputs overview plot:", overview_plot_path)
 
         if open_plot(overview_plot_path):
-            print("Opened outputs overview plot (ON):", overview_plot_path)
+            print("Opened outputs overview plot:", overview_plot_path)
         elif open_plot(single_run_plot_path):
-            print("Opened single-run plot (ON):", single_run_plot_path)
+            print("Opened single-run plot:", single_run_plot_path)
         else:
-            print("Could not automatically open plots (ON):", overview_plot_path)
+            print("Could not automatically open plots:", overview_plot_path)
     else:
-        print("Skipping ON diagnostics plot because ON integration failed.")
-        print("ON message:", out_on["message"])
+        print("Skipping diagnostics plot because integration failed.")
+        print("Message:", out["message"])
 
-    return out_on
+    return out
 
 
 if __name__ == "__main__":
