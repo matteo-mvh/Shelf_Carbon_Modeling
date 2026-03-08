@@ -100,23 +100,35 @@ class Params:
 
 
     # ============================================================
-    # Biology parameters (toy ecosystem)
+    # Biology and DOC parameters (reduced DIC-DOC formulation)
     # ============================================================
 
     biology_on: bool = True
     # Toggle biological processes on/off
 
-    Pmax: float = 1.0e-8
-    # Maximum glucose production rate [mol glucose m^-3 s^-1]
+    mu_bio: float = 1.0e-7
+    # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)
 
-    light_half_saturation: float = 250.0
-    # Half-saturation light level for photosynthesis [µmol photons m^-2 s^-1]
+    # Fitted production-irradiance parameters (section 6.1)
+    pp_A1: float = 2.1713
+    pp_K1: float = 99.9420
+    pp_A2: float = 5.8761
+    pp_K2: float = 463.3975
+    pp_n2: float = 4.2981
 
-    Km_C: float = 1.0e-2
-    # Half-saturation constant for DIC limitation [mol C m^-3]
+    # DOC partitioning fractions (must sum to 1)
+    alpha_l: float = 0.7
+    alpha_s: float = 0.3
+    alpha_r: float = 0.0
 
-    tau_remin_days: float = 60.0
-    # Remineralization timescale [days]
+    # DOC remineralization rates [s^-1]
+    lambda_l: float = 3.0e-6
+    lambda_s: float = 5.0e-8
+    lambda_r: float = 3.0e-10
+
+    # DOC aging rates [s^-1]
+    gamma_l: float = 5.0e-8
+    gamma_s: float = 5.0e-10
 
     DIC_deep: float = 2.20
     # Deep/source-water DIC concentration for entrainment [mol C m^-3]
@@ -124,8 +136,14 @@ class Params:
     TA_deep: float = 1.97
     # Deep/source-water TA concentration for entrainment [mol m^-3]
 
-    G_deep: float = 0.0
-    # Deep/source-water glucose concentration for entrainment [mol glucose m^-3]
+    LDOC_deep: float = 0.0
+    # Deep/source-water LDOC concentration [mol C m^-3]
+
+    SDOC_deep: float = 0.0
+    # Deep/source-water SDOC concentration [mol C m^-3]
+
+    RDOC_deep: float = 0.0
+    # Deep/source-water RDOC concentration [mol C m^-3]
 
 
     # ============================================================
@@ -149,8 +167,14 @@ class Params:
     pCO2_sw_init: float = 300.0
     # Initial surface seawater pCO2 [µatm]
 
-    G0: float = 0.0
-    # Initial glucose concentration [mol glucose m^-3]
+    LDOC0: float = 0.0
+    # Initial labile DOC [mol C m^-3]
+
+    SDOC0: float = 0.0
+    # Initial semi-labile DOC [mol C m^-3]
+
+    RDOC0: float = 0.0
+    # Initial refractory DOC [mol C m^-3]
 
 
 # Default instance

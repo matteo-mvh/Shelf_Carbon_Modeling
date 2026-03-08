@@ -115,7 +115,7 @@ def save_biology_comparison_plot(
     output_path: str = "results/biology_toggle_comparison.png",
     plot_last_year_only: bool = True,
 ):
-    """Save side-by-side ON/OFF biology diagnostics with glucose shown as DOC."""
+    """Save side-by-side ON/OFF biology diagnostics for DIC-DOC pools."""
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -133,7 +133,7 @@ def save_biology_comparison_plot(
 
     axes[0].plot(td, offp["DIC"], label="DIC (biology OFF)")
     axes[0].plot(td, onp["DIC"], label="DIC (biology ON)")
-    axes[0].plot(td, onp["DOC"], label="DOC = 6×glucose (biology ON)")
+    axes[0].plot(td, onp["DOC"], label="DOC total (biology ON)")
     axes[0].plot(td, onp["DIC"] + onp["DOC"], label="Total C = DIC + DOC (ON)")
     axes[0].set_ylabel("Carbon (mol C m$^{-3}$)")
     axes[0].set_title(f"Carbon pools with biology toggle ({time_window})")
@@ -150,8 +150,8 @@ def save_biology_comparison_plot(
 
     axes[2].plot(td, offp["F"], label="Air-sea flux (OFF)")
     axes[2].plot(td, onp["F"], label="Air-sea flux (ON)")
-    axes[2].plot(td, onp["remin_flux"], label="Remin flux (ON)")
-    axes[2].plot(td, -onp["glucose_prod_flux"], label="Glucose uptake flux (ON)")
+    axes[2].plot(td, onp["fremin"], label="DOC remin flux (ON)")
+    axes[2].plot(td, -onp["fprod"], label="Biological production sink (ON)")
     axes[2].axhline(0, linestyle="--")
     axes[2].set_ylabel("F (mol C m$^{-2}$ s$^{-1}$)")
     axes[2].set_title("Air-sea and biology carbon fluxes")

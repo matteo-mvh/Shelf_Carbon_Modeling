@@ -4,10 +4,12 @@ from dataclasses import dataclass
 @dataclass
 class State:
     # Prognostic states
-    DIC: float  # mol C m^-3 (proxy)
-    G: float    # mol glucose m^-3
-    TA: float   # mol m^-3
+    DIC: float
+    LDOC: float
+    SDOC: float
+    RDOC: float
+    TA: float
 
-    # Common diagnostics (placeholders)
-    pCO2_sw: float = float("nan")  # uatm
-    DOC: float = float("nan")      # mol C m^-3
+    # Diagnostics
+    pCO2_sw: float = float("nan")
+    DOC: float = float("nan")
