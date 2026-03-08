@@ -134,7 +134,7 @@ def seasonal_mld_tendency(
     return -amplitude * omega * np.sin(omega * (t - peak_seconds))
 
 def rhs(t, y, p: Params, pH_guess=None):
-    """RHS for y=[DIC, TA, LDOC, SDOC, RDOC] with MLD-driven entrainment."""
+    """RHS for y=[DIC, TA, LDOC, SDOC, RDOC] with MLD-driven entrainment/dilution."""
     dic, ta, ldoc, sdoc, rdoc = [float(v) for v in y]
 
     dic = max(dic, 1e-12)
@@ -200,18 +200,26 @@ def rhs(t, y, p: Params, pH_guess=None):
         raise ValueError("Mixed-layer depth must remain strictly positive.")
 
     entrainment_factor = deepening_rate / h_mld
-    dDIC_entrain = entrainment_factor * (p.deep_entrainment_dic - dic)
-    dTA_entrain = entrainment_factor * (p.deep_entrainment_ta - ta)
-    dLDOC_entrain = entrainment_factor * (p.deep_entrainment_ldoc - ldoc)
-    dSDOC_entrain = entrainment_factor * (p.deep_entrainment_sdoc - sdoc)
-    dRDOC_entrain = entrainment_factor * (p.deep_entrainment_rdoc - rdoc)
+
+    # Write entrainment as explicit source + dilution sink during MLD deepening.
+    dDIC_entrain_source = entrainment_factor * p.deep_entrainment_dic
+    dTA_entrain_source = entrainment_factor * p.deep_entrainment_ta
+    dLDOC_entrain_source = entrainment_factor * p.deep_entrainment_ldoc
+    dSDOC_entrain_source = entrainment_factor * p.deep_entrainment_sdoc
+    dRDOC_entrain_source = entrainment_factor * p.deep_entrainment_rdoc
+
+    dDIC_dilution = -entrainment_factor * dic
+    dTA_dilution = -entrainment_factor * ta
+    dLDOC_dilution = -entrainment_factor * ldoc
+    dSDOC_dilution = -entrainment_factor * sdoc
+    dRDOC_dilution = -entrainment_factor * rdoc
 
     return [
-        dDIC_flux + dDIC_bio + dDIC_entrain,
-        dTA_entrain,
-        dldoc_bio + dLDOC_entrain,
-        dsdoc_bio + dSDOC_entrain,
-        drdoc_bio + dRDOC_entrain,
+        dDIC_flux + dDIC_bio + dDIC_entrain_source + dDIC_dilution,
+        dTA_entrain_source + dTA_dilution,
+        dldoc_bio + dLDOC_entrain_source + dLDOC_dilution,
+        dsdoc_bio + dSDOC_entrain_source + dSDOC_dilution,
+        drdoc_bio + dRDOC_entrain_source + dRDOC_dilution,
     ], pH
 
 
@@ -321,11 +329,23 @@ def run(p: Params):
     with np.errstate(divide="ignore", invalid="ignore"):
         entrainment_rate = np.where(mld > 0.0, np.maximum(dhdt, 0.0) / mld, 0.0)
 
-    dDIC_entrain = entrainment_rate * (p.deep_entrainment_dic - dic)
-    dTA_entrain = entrainment_rate * (p.deep_entrainment_ta - ta)
-    dLDOC_entrain = entrainment_rate * (p.deep_entrainment_ldoc - ldoc)
-    dSDOC_entrain = entrainment_rate * (p.deep_entrainment_sdoc - sdoc)
-    dRDOC_entrain = entrainment_rate * (p.deep_entrainment_rdoc - rdoc)
+    dDIC_entrain_source = entrainment_rate * p.deep_entrainment_dic
+    dTA_entrain_source = entrainment_rate * p.deep_entrainment_ta
+    dLDOC_entrain_source = entrainment_rate * p.deep_entrainment_ldoc
+    dSDOC_entrain_source = entrainment_rate * p.deep_entrainment_sdoc
+    dRDOC_entrain_source = entrainment_rate * p.deep_entrainment_rdoc
+
+    dDIC_dilution = -entrainment_rate * dic
+    dTA_dilution = -entrainment_rate * ta
+    dLDOC_dilution = -entrainment_rate * ldoc
+    dSDOC_dilution = -entrainment_rate * sdoc
+    dRDOC_dilution = -entrainment_rate * rdoc
+
+    dDIC_entrain = dDIC_entrain_source + dDIC_dilution
+    dTA_entrain = dTA_entrain_source + dTA_dilution
+    dLDOC_entrain = dLDOC_entrain_source + dLDOC_dilution
+    dSDOC_entrain = dSDOC_entrain_source + dSDOC_dilution
+    dRDOC_entrain = dRDOC_entrain_source + dRDOC_dilution
 
     sinking_rate = np.where(dhdt < 0.0, -dhdt, 0.0)
     F_sink_DIC = sinking_rate * dic
@@ -367,6 +387,16 @@ def run(p: Params):
         "dLDOC_entrain": dLDOC_entrain,
         "dSDOC_entrain": dSDOC_entrain,
         "dRDOC_entrain": dRDOC_entrain,
+        "dDIC_entrain_source": dDIC_entrain_source,
+        "dTA_entrain_source": dTA_entrain_source,
+        "dLDOC_entrain_source": dLDOC_entrain_source,
+        "dSDOC_entrain_source": dSDOC_entrain_source,
+        "dRDOC_entrain_source": dRDOC_entrain_source,
+        "dDIC_dilution": dDIC_dilution,
+        "dTA_dilution": dTA_dilution,
+        "dLDOC_dilution": dLDOC_dilution,
+        "dSDOC_dilution": dSDOC_dilution,
+        "dRDOC_dilution": dRDOC_dilution,
         "F_sink_DIC": F_sink_DIC,
         "frac_CO2": frac_co2,
         "frac_HCO3": frac_hco3,
