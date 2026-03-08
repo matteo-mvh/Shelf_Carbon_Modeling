@@ -41,13 +41,13 @@ def _slice_output_window(out: dict, plot_last_year_only: bool):
     return {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out.items()}
 
 
-def _pie_labels_with_percentages(labels, values):
-    """Return pie labels formatted as `name\nxx.x%` from pie-slice values."""
+def _legend_labels_with_percentages(labels, values):
+    """Return legend labels formatted as `name (xx.x%)` from pie-slice values."""
     values = np.asarray(values, dtype=float)
     total = np.nansum(values)
     if not np.isfinite(total) or total <= 0.0:
-        return [f"{label}\nn/a" for label in labels]
-    return [f"{label}\n{(100.0 * value / total):.1f}%" for label, value in zip(labels, values)]
+        return [f"{label} (n/a)" for label in labels]
+    return [f"{label} ({(100.0 * value / total):.1f}%)" for label, value in zip(labels, values)]
 
 
 def save_diagnostics_plot(
@@ -137,8 +137,8 @@ def save_outputs_overview_plot(
     total_carbon = outp["DIC"] + outp["DOC"]
     bio_uptake = outp["fprod"] - outp["fremin"]
 
-    fig = plt.figure(figsize=(16, 12), constrained_layout=True)
-    grid = fig.add_gridspec(4, 2, width_ratios=[4.1, 2.4], hspace=0.30, wspace=0.08)
+    fig = plt.figure(figsize=(18, 12), constrained_layout=True)
+    grid = fig.add_gridspec(4, 2, width_ratios=[3.8, 2.0], hspace=0.35, wspace=0.25)
 
     left_axes = [fig.add_subplot(grid[i, 0]) for i in range(4)]
     for ax in left_axes[1:]:
@@ -189,12 +189,13 @@ def save_outputs_overview_plot(
     ])
     dic_species = np.clip(dic_species, 0.0, None)
     dic_labels = ["CO2*", "HCO3-", "CO3--"]
-    ax_dic_pie.pie(
-        dic_species,
-        labels=_pie_labels_with_percentages(dic_labels, dic_species),
-        startangle=90,
-        textprops={"fontsize": 9},
-        labeldistance=1.05,
+    dic_wedges, _ = ax_dic_pie.pie(dic_species, startangle=90)
+    ax_dic_pie.legend(
+        dic_wedges,
+        _legend_labels_with_percentages(dic_labels, dic_species),
+        loc="center left",
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False,
     )
     ax_dic_pie.set_title("Mean DIC species share\n(last year)")
 
@@ -206,47 +207,51 @@ def save_outputs_overview_plot(
     ])
     doc_species = np.clip(doc_species, 0.0, None)
     doc_labels = ["LDOC", "SDOC", "RDOC"]
-    ax_doc_pie.pie(
-        doc_species,
-        labels=_pie_labels_with_percentages(doc_labels, doc_species),
-        startangle=90,
-        textprops={"fontsize": 9},
-        labeldistance=1.05,
+    doc_wedges, _ = ax_doc_pie.pie(doc_species, startangle=90)
+    ax_doc_pie.legend(
+        doc_wedges,
+        _legend_labels_with_percentages(doc_labels, doc_species),
+        loc="center left",
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False,
     )
     ax_doc_pie.set_title("Mean DOC species share\n(last year)")
 
-    ax_stats = fig.add_subplot(grid[2:, 1])
-    ax_stats.axis("off")
+    ax_stats_main = fig.add_subplot(grid[2, 1])
+    ax_stats_main.axis("off")
     main_metrics = (
         f"Total Carbon mean: {np.nanmean(total_carbon):.4f} mol C m$^{{-3}}$\n"
         f"Total DIC mean: {np.nanmean(outp['DIC']):.4f} mol C m$^{{-3}}$\n"
         f"Total DOC mean: {np.nanmean(outp['DOC']):.4f} mol C m$^{{-3}}$\n"
         f"Mean pH: {np.nanmean(outp['pH']):.3f}"
     )
-    ax_stats.text(
+    ax_stats_main.text(
         0.01,
-        0.92,
+        0.95,
         main_metrics,
         va="top",
         fontsize=11,
         bbox={"boxstyle": "round", "facecolor": "#f4f4f4", "edgecolor": "#bbbbbb"},
     )
+    ax_stats_main.set_title("Stored carbon metrics")
 
+    ax_stats_extra = fig.add_subplot(grid[3, 1])
+    ax_stats_extra.axis("off")
     extra_metrics = (
         f"Mean Air-Sea F_ex: {np.nanmean(outp['F_ex']):.3e} mol C m$^{{-2}}$ s$^{{-1}}$\n"
         f"Mean Biouptake (F_prod - F_remin): {np.nanmean(bio_uptake):.3e} mol C m$^{{-2}}$ s$^{{-1}}$\n"
         f"Mean ΔpCO2: {np.nanmean(outp['delta_pCO2']):.2f} µatm\n"
         f"pH range: {np.nanmin(outp['pH']):.3f} - {np.nanmax(outp['pH']):.3f}"
     )
-    ax_stats.text(
+    ax_stats_extra.text(
         0.01,
-        0.44,
+        0.95,
         extra_metrics,
         va="top",
         fontsize=11,
         bbox={"boxstyle": "round", "facecolor": "#f4f4f4", "edgecolor": "#bbbbbb"},
     )
-    ax_stats.set_title("Key outputs summary")
+    ax_stats_extra.set_title("Additional key outputs")
 
     fig.suptitle("Shelf carbon model outputs overview", fontsize=16)
     fig.savefig(path, dpi=160)
