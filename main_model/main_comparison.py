@@ -34,7 +34,7 @@ from main_model.modules.carbonate_solver import (
     ta_from_salinity,
 )
 from main_model.modules.gas_exchange import co2_flux_and_tendency
-from main_model.modules.plotting import save_diagnostics_plot, save_biology_comparison_plot
+from main_model.modules.plotting import save_diagnostics_plot, save_biology_comparison_plot, save_outputs_overview_plot
 
 
 DEFAULT_NON_SEASONAL_MLD_METERS = 50.0
@@ -383,6 +383,13 @@ def main_comparison():
             plot_last_year_only=params_on.plot_last_year_only,
         )
         print("Saved single-run plot (ON):", single_run_plot_path)
+
+        overview_plot_path_on = save_outputs_overview_plot(
+            out_on,
+            output_path="results/main_model_outputs_overview_on.png",
+            plot_last_year_only=True,
+        )
+        print("Saved outputs overview plot (ON):", overview_plot_path_on)
     else:
         print("Skipping ON diagnostics plot because ON integration failed.")
 
@@ -393,6 +400,13 @@ def main_comparison():
             plot_last_year_only=params_off.plot_last_year_only,
         )
         print("Saved single-run plot (OFF):", single_run_plot_off_path)
+
+        overview_plot_path_off = save_outputs_overview_plot(
+            out_off,
+            output_path="results/main_model_outputs_overview_off.png",
+            plot_last_year_only=True,
+        )
+        print("Saved outputs overview plot (OFF):", overview_plot_path_off)
     else:
         print("Skipping OFF diagnostics plot because OFF integration failed.")
 
