@@ -1,4 +1,15 @@
-"""Main integration script for the modular surface-ocean carbon box model."""
+"""Main integration script for the modular surface-ocean carbon box model.
+
+State vector:
+    y = [DIC, LDOC, SDOC, RDOC]
+
+Key assumptions in this version:
+- Total alkalinity (TA) is fixed from salinity and is therefore constant
+  because salinity is held constant.
+- No entrainment with deep water is included.
+- Carbonate speciation is diagnosed from (DIC, TA, T, S).
+"""
+
 from __future__ import annotations
 
 import os
@@ -83,10 +94,20 @@ def seasonal_mld_tendency(t, seasonality=True, winter_depth=80.0, summer_depth=2
     return -amplitude * omega * np.sin(omega * (t - peak_seconds))
 
 
-def rhs(t, y, p: Params, pH_guess=None):
-    """RHS for y=[DIC, LDOC, SDOC, RDOC, TA]."""
-    dic, ldoc, sdoc, rdoc, ta_t = [float(v) for v in y]
-    T = float(seasonal_temperature(t, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days)[0])
+def rhs(t, y, p: Params, ta_const: float, pH_guess=None):
+    """RHS for y=[DIC, LDOC, SDOC, RDOC] with fixed TA and no entrainment."""
+    dic, ldoc, sdoc, rdoc = [float(v) for v in y]
+
+    dic = max(dic, 1e-12)
+    ldoc = max(ldoc, 0.0)
+    sdoc = max(sdoc, 0.0)
+    rdoc = max(rdoc, 0.0)
+
+    T = float(
+        seasonal_temperature(
+            t, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days
+        )[0]
+    )
     light = float(
         seasonal_light(
             t,
@@ -99,17 +120,18 @@ def rhs(t, y, p: Params, pH_guess=None):
             p.seasonal_cycle_days,
         )[0]
     )
-    h_mld = float(seasonal_mld(t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days)[0])
-    dhdt = float(
-        seasonal_mld_tendency(t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days)[0]
+    h_mld = float(
+        seasonal_mld(
+            t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+        )[0]
     )
-    we = max(dhdt, 0.0)
+    dhdt = float(
+        seasonal_mld_tendency(
+            t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+        )[0]
+    )
 
-    #safeguard
-    dic = max(dic, 1e-12)
-    ta_t = max(ta_t, 1e-12)
-    
-    co2, _, _, pH = speciate_from_dic_ta(dic, ta_t, T, p.S, pH_guess=pH_guess)
+    co2, _, _, pH = speciate_from_dic_ta(dic, ta_const, T, p.S, pH_guess=pH_guess)
     K0 = float(solubility_co2_weiss74(T, p.S))
     co2_eq = K0 * p.pCO2_air
     _, dDIC_flux = co2_flux_and_tendency(co2, co2_eq, p.U10, T, h_mld)
@@ -137,48 +159,47 @@ def rhs(t, y, p: Params, pH_guess=None):
         )
         dDIC_bio = -fprod + fremin
     else:
-        dldoc_bio = dsdoc_bio = drdoc_bio = 0.0
+        dldoc_bio = 0.0
+        dsdoc_bio = 0.0
+        drdoc_bio = 0.0
         dDIC_bio = 0.0
 
+    # Mixed-layer depth concentration effect only
     dDIC_mld = -(dhdt / h_mld) * dic
-    dDIC_ent = (we / h_mld) * (p.DIC_deep - dic)
-
-    dTA_mld = -(dhdt / h_mld) * ta_t
-    dTA_ent = (we / h_mld) * (p.TA_deep - ta_t)
-
     dLDOC_mld = -(dhdt / h_mld) * ldoc
     dSDOC_mld = -(dhdt / h_mld) * sdoc
     dRDOC_mld = -(dhdt / h_mld) * rdoc
 
-    dLDOC_ent = (we / h_mld) * (p.LDOC_deep - ldoc)
-    dSDOC_ent = (we / h_mld) * (p.SDOC_deep - sdoc)
-    dRDOC_ent = (we / h_mld) * (p.RDOC_deep - rdoc)
-
     return [
-        dDIC_flux + dDIC_bio + dDIC_mld + dDIC_ent,
-        dldoc_bio + dLDOC_mld + dLDOC_ent,
-        dsdoc_bio + dSDOC_mld + dSDOC_ent,
-        drdoc_bio + dRDOC_mld + dRDOC_ent,
-        dTA_mld + dTA_ent,
+        dDIC_flux + dDIC_bio + dDIC_mld,
+        dldoc_bio + dLDOC_mld,
+        dsdoc_bio + dSDOC_mld,
+        drdoc_bio + dRDOC_mld,
     ], pH
 
 
-def initialize_state(p: Params):
-    T0 = float(seasonal_temperature(0.0, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days)[0])
-    ta = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
-    dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta, T0, p.S)
-    return [float(dic0), float(p.LDOC0), float(p.SDOC0), float(p.RDOC0), float(ta)]
+def initialize_state(p: Params, ta_const: float):
+    T0 = float(
+        seasonal_temperature(
+            0.0, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days
+        )[0]
+    )
+    dic0 = initialize_dic_from_pco2(p.pCO2_sw_init, ta_const, T0, p.S)
+    return [float(dic0), float(p.LDOC0), float(p.SDOC0), float(p.RDOC0)]
 
 
 def run(p: Params):
-    y0 = initialize_state(p)
+    ta_const = ta_from_salinity(p.S, p.ta0_mol_per_m3, p.S0_ta)
+
+    y0 = initialize_state(p, ta_const)
     t_end = p.years * 365.0 * 24.0 * 3600.0
-    t_eval = np.linspace(0.0, t_end, int(round(t_end / p.dt_output)) + 1)
+    n_out = int(round(t_end / p.dt_output)) + 1
+    t_eval = np.linspace(0.0, t_end, n_out)
 
     ph_cache = {"value": 8.1}
 
     def rhs_cached(t, y):
-        dydt, pH = rhs(t, y, p, pH_guess=ph_cache["value"])
+        dydt, pH = rhs(t, y, p, ta_const=ta_const, pH_guess=ph_cache["value"])
         ph_cache["value"] = pH
         return dydt
 
@@ -193,75 +214,75 @@ def run(p: Params):
         max_step=p.dt_output,
     )
 
-    T = seasonal_temperature(sol.t, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days)
-    light = seasonal_light(sol.t, p.light_seasonality, p.light_phase_days, p.light_peak_day, p.light_sharpness, p.light_winter, p.light_summer, p.seasonal_cycle_days)
-    mld = seasonal_mld(sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days)
-    dic, ldoc, sdoc, rdoc, ta = sol.y
+    T = seasonal_temperature(
+        sol.t, p.T_min, p.T_max, p.seasonality, p.temperature_peak_day, p.seasonal_cycle_days
+    )
+    light = seasonal_light(
+        sol.t,
+        p.light_seasonality,
+        p.light_phase_days,
+        p.light_peak_day,
+        p.light_sharpness,
+        p.light_winter,
+        p.light_summer,
+        p.seasonal_cycle_days,
+    )
+    mld = seasonal_mld(
+        sol.t, p.mld_seasonality, p.mld_winter, p.mld_summer, p.mld_peak_day, p.seasonal_cycle_days
+    )
+
+    dic, ldoc, sdoc, rdoc = sol.y
 
     K0 = solubility_co2_weiss74(T, p.S)
     co2 = np.full_like(dic, np.nan)
     hco3 = np.full_like(dic, np.nan)
     co3 = np.full_like(dic, np.nan)
     pH = np.full_like(dic, np.nan)
+
     pH_guess = ph_cache["value"]
     for i, Ti in enumerate(T):
-        co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(dic[i], ta[i], float(Ti), p.S, pH_guess=pH_guess)
+        co2[i], hco3[i], co3[i], pH[i] = speciate_from_dic_ta(
+            max(dic[i], 1e-12), ta_const, float(Ti), p.S, pH_guess=pH_guess
+        )
         pH_guess = pH[i]
 
     pco2_sw = co2 / K0
     co2_eq = K0 * p.pCO2_air
-    F = np.array([co2_flux_and_tendency(co2_i, co2_eq_i, p.U10, Ti, h_i)[0] for co2_i, co2_eq_i, Ti, h_i in zip(co2, co2_eq, T, mld)])
+    F_ex = np.array(
+        [
+            co2_flux_and_tendency(co2_i, co2_eq_i, p.U10, Ti, h_i)[0]
+            for co2_i, co2_eq_i, Ti, h_i in zip(co2, co2_eq, T, mld)
+        ]
+    )
 
-    pp_light = np.array([
-        bio_tendencies(
-            light=li,
-            ldoc=ld_i,
-            sdoc=sd_i,
-            rdoc=rd_i,
-            mu=p.mu_bio,
-            alpha_l=p.alpha_l,
-            alpha_s=p.alpha_s,
-            alpha_r=p.alpha_r,
-            lambda_l=p.lambda_l,
-            lambda_s=p.lambda_s,
-            lambda_r=p.lambda_r,
-            gamma_l=p.gamma_l,
-            gamma_s=p.gamma_s,
-            A1=p.pp_A1,
-            K1=p.pp_K1,
-            A2=p.pp_A2,
-            K2=p.pp_K2,
-            n2=p.pp_n2,
-        )[3]
-        if p.biology_on else 0.0
-        for li, ld_i, sd_i, rd_i in zip(light, ldoc, sdoc, rdoc)
-    ])
-    fremin = np.array([
-        bio_tendencies(
-            light=li,
-            ldoc=ld_i,
-            sdoc=sd_i,
-            rdoc=rd_i,
-            mu=p.mu_bio,
-            alpha_l=p.alpha_l,
-            alpha_s=p.alpha_s,
-            alpha_r=p.alpha_r,
-            lambda_l=p.lambda_l,
-            lambda_s=p.lambda_s,
-            lambda_r=p.lambda_r,
-            gamma_l=p.gamma_l,
-            gamma_s=p.gamma_s,
-            A1=p.pp_A1,
-            K1=p.pp_K1,
-            A2=p.pp_A2,
-            K2=p.pp_K2,
-            n2=p.pp_n2,
-        )[4]
-        if p.biology_on else 0.0
-        for li, ld_i, sd_i, rd_i in zip(light, ldoc, sdoc, rdoc)
-    ])
+    pp_light = np.zeros_like(light)
+    fremin = np.zeros_like(light)
+
+    if p.biology_on:
+        for i, (li, ld_i, sd_i, rd_i) in enumerate(zip(light, ldoc, sdoc, rdoc)):
+            _, _, _, pp_light[i], fremin[i] = bio_tendencies(
+                light=li,
+                ldoc=max(ld_i, 0.0),
+                sdoc=max(sd_i, 0.0),
+                rdoc=max(rd_i, 0.0),
+                mu=p.mu_bio,
+                alpha_l=p.alpha_l,
+                alpha_s=p.alpha_s,
+                alpha_r=p.alpha_r,
+                lambda_l=p.lambda_l,
+                lambda_s=p.lambda_s,
+                lambda_r=p.lambda_r,
+                gamma_l=p.gamma_l,
+                gamma_s=p.gamma_s,
+                A1=p.pp_A1,
+                K1=p.pp_K1,
+                A2=p.pp_A2,
+                K2=p.pp_K2,
+                n2=p.pp_n2,
+            )
 
     doc = ldoc + sdoc + rdoc
+    ta = np.full_like(dic, ta_const)
 
     with np.errstate(divide="ignore", invalid="ignore"):
         frac_co2 = 100.0 * co2 / dic
@@ -289,7 +310,7 @@ def run(p: Params):
         "fremin": fremin,
         "pH": pH,
         "pCO2_sw": pco2_sw,
-        "F": F,
+        "F_ex": F_ex,
         "frac_CO2": frac_co2,
         "frac_HCO3": frac_hco3,
         "frac_CO3": frac_co3,
@@ -299,6 +320,7 @@ def run(p: Params):
 def main():
     params_on = Params(biology_on=True)
     params_off = Params(biology_on=False)
+
     out_on = run(params_on)
     out_off = run(params_off)
 
@@ -306,7 +328,11 @@ def main():
     print("Run success (OFF):", out_off["success"])
 
     if out_on["success"] and out_off["success"]:
-        figure_path = save_biology_comparison_plot(out_on, out_off, plot_last_year_only=params_on.plot_last_year_only)
+        figure_path = save_biology_comparison_plot(
+            out_on,
+            out_off,
+            plot_last_year_only=params_on.plot_last_year_only,
+        )
         print("Saved plot:", figure_path)
     else:
         print("Skipping comparison plot because one or both integrations failed.")
