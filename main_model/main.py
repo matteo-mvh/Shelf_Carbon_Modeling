@@ -1,5 +1,4 @@
 """Main integration script for the modular surface-ocean carbon box model."""
-
 from __future__ import annotations
 
 import os
@@ -170,7 +169,7 @@ def initialize_state(p: Params):
 def run(p: Params):
     y0 = initialize_state(p)
     t_end = p.years * 365.0 * 24.0 * 3600.0
-    t_eval = np.arange(0.0, t_end + p.dt_output, p.dt_output)
+    t_eval = np.linspace(0.0, t_end, int(round(t_end / p.dt_output)) + 1)
 
     ph_cache = {"value": 8.1}
 
