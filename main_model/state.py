@@ -8,8 +8,8 @@ class State:
     LDOC: float
     SDOC: float
     RDOC: float
-    TA: float
 
-    # Diagnostics
+    # Diagnostics / prescribed fields
+    TA_const: float
     pCO2_sw: float = float("nan")
     DOC: float = float("nan")
