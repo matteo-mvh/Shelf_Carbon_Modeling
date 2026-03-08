@@ -5,9 +5,6 @@ Carbon concentrations are in mol C m^-3.
 Fluxes are mol C m^-2 s^-1.
 """
 
-from __future__ import annotations
-
-from dataclasses import asdict
 from dataclasses import dataclass
 
 from main_model.modules.carbonate_solver import REFERENCE_SEAWATER_DENSITY_KG_PER_M3
@@ -172,27 +169,3 @@ class Params:
 
 # Default instance
 PARAMS = Params()
-
-
-def params_with_auto_fitted_light(**overrides) -> Params:
-    """Return Params with PP(L) coefficients fitted from the NPZD light sweep.
-
-    The fit is computed using ``main_model.modules.Light_Parameter`` and the
-    resulting coefficients are automatically inserted into the PP(L) section.
-    """
-
-    from main_model.modules.Light_Parameter import fit_light_parameters_for_params
-
-    base = Params(**overrides)
-    fitted = fit_light_parameters_for_params()
-    base_dict = asdict(base)
-    base_dict.update(
-        {
-            "pp_A1": fitted.pp_A1,
-            "pp_K1": fitted.pp_K1,
-            "pp_A2": fitted.pp_A2,
-            "pp_K2": fitted.pp_K2,
-            "pp_n2": fitted.pp_n2,
-        }
-    )
-    return Params(**base_dict)

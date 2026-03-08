@@ -5,13 +5,15 @@ This module reproduces the provided NPZ light-sweep workflow and fits
 
     PP(L) = A1 * L / (L + K1) + A2 * L^n2 / (L^n2 + K2^n2)
 
-The fitted coefficients can be injected into :class:`main_model.parameters.Params`
-through ``fit_light_parameters_for_params``.
+Use ``apply_fitted_light_parameters_to_file`` only when you want to update the
+PP(L) defaults in ``main_model/parameters.py``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+import re
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -169,7 +171,32 @@ def format_params_block(result: LightFitResult) -> str:
     )
 
 
+def apply_fitted_light_parameters_to_file(parameters_path: str | Path = "main_model/parameters.py") -> LightFitResult:
+    """Fit PP(L) coefficients and overwrite pp_* defaults in parameters.py."""
+    result = fit_light_parameters_for_params()
+    path = Path(parameters_path)
+    text = path.read_text(encoding="utf-8")
+
+    replacements = {
+        "pp_A1": result.pp_A1,
+        "pp_K1": result.pp_K1,
+        "pp_A2": result.pp_A2,
+        "pp_K2": result.pp_K2,
+        "pp_n2": result.pp_n2,
+    }
+
+    for key, value in replacements.items():
+        pattern = rf"^{key}: float = [^\n]+$"
+        replacement = f"{key}: float = {value:.6f}"
+        text, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+        if count != 1:
+            raise RuntimeError(f"Could not update parameter line for {key} in {path}")
+
+    path.write_text(text, encoding="utf-8")
+    return result
+
+
 if __name__ == "__main__":
-    fitted = fit_light_parameters_for_params()
-    print("Fitted PP(L) parameters for Params:")
+    fitted = apply_fitted_light_parameters_to_file()
+    print("Updated main_model/parameters.py with fitted PP(L) parameters:")
     print(format_params_block(fitted))

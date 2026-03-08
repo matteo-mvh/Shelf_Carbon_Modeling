@@ -15,11 +15,11 @@ if __package__ in (None, ""):
 
 from main_model.main_comparison import open_plot, run
 from main_model.modules.plotting import save_diagnostics_plot, save_outputs_overview_plot
-from main_model.parameters import Params, params_with_auto_fitted_light
+from main_model.parameters import Params
 
 
 def main():
-    params_on = params_with_auto_fitted_light(biology_on=True)
+    params_on = Params(biology_on=True)
     out_on = run(params_on)
 
     print("Run success (ON):", out_on["success"])
