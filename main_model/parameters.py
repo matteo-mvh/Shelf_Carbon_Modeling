@@ -130,20 +130,10 @@ class Params:
     gamma_l: float = 5.0e-8
     gamma_s: float = 5.0e-10
 
-    DIC_deep: float = 2.20
-    # Deep/source-water DIC concentration for entrainment [mol C m^-3]
-
-    TA_deep: float = 1.97
-    # Deep/source-water TA concentration for entrainment [mol m^-3]
-
-    LDOC_deep: float = 0.0
-    # Deep/source-water LDOC concentration [mol C m^-3]
-
-    SDOC_deep: float = 0.0
-    # Deep/source-water SDOC concentration [mol C m^-3]
-
-    RDOC_deep: float = 0.0
-    # Deep/source-water RDOC concentration [mol C m^-3]
+    # NOTE: No deep-water entrainment terms are included in the current
+    # reduced model formulation. Deep/source-water concentration parameters
+    # were intentionally removed to keep the parameter set consistent with
+    # the governing equations used in main.py.
 
 
     # ============================================================
