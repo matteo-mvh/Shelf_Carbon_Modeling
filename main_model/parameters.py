@@ -59,7 +59,7 @@ class Params:
     seasonal_cycle_days: float = 365.0
     # Length of the seasonal cycle [days]
 
-    temperature_peak_day: float = 210.0
+    temperature_peak_day: float = 190.0
     # Day of year of maximum SST [days]
 
 
@@ -74,7 +74,7 @@ class Params:
     light_phase_days: float = 0.0
     # Phase shift for light forcing [days]
 
-    light_peak_day: float = 172.0
+    light_peak_day: float = 170.0
     # Day of year of maximum light [days]
 
     light_sharpness: float = 1.5
@@ -106,7 +106,7 @@ class Params:
     biology_on: bool = True
     # Toggle biological processes on/off
 
-    mu_bio: float = 1.0e-7
+    mu_bio: float = 1.0e-8
     # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)
 
     # Fitted production-irradiance parameters (section 6.1)
