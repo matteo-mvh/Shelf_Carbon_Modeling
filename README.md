@@ -1,112 +1,182 @@
 # Shelf Carbon Modeling
 
-A lightweight repository for developing and testing simplified dissolved inorganic carbon (DIC) transport equations before implementation in **DHI MIKE / Ecolab** workflows.
+A modular Python repository for prototyping a **surface-ocean shelf carbon box model** before transfer to operational-style workflows (e.g., DHI MIKE / Ecolab).
 
-## Link to PDF Project Documentation
+## Project documentation
 
-https://www.overleaf.com/read/qvfpkvxcncrd#6ebd3d
+- Overleaf project notes: https://www.overleaf.com/read/qvfpkvxcncrd#6ebd3d
 
-## Purpose
+## What this repository is for
 
-This project supports a Spring 2026 special course focused on hydrodynamic modeling of carbon transport on continental shelves. The repository is intended as a practical sandbox to:
+This repo is a sandbox for testing and refining carbon-process formulations in a controlled environment. It is designed to:
 
-- prototype and compare equation formulations,
-- perform sensitivity analyses of key physical and biogeochemical parameters,
-- prepare transferable model components for integration into MIKE setups,
-- document assumptions and recommendations for a stand-alone DIC-oriented Ecolab template.
+- test alternative equation structures quickly,
+- isolate process contributions (physics, chemistry, biology),
+- compare sensitivity to forcing and parameters,
+- generate diagnostics/figures that support model interpretation,
+- prepare clean formulations that can be translated to MIKE/Ecolab components.
 
-In short: this is an equation-and-sensitivity development space that feeds into production-style DHI models.
+In short: this is a **development and validation workspace** for simplified shelf-carbon dynamics.
 
-## Course context
+---
 
-The course investigates how atmospheric CO₂ uptake and DIC redistribution are controlled by:
+## Model scope and conceptual setup
 
-- air–sea exchange,
-- advection and diffusion,
-- chemical speciation/equilibria,
-- seasonal stratification and circulation,
-- cross-shelf exchange processes that can temporarily isolate carbon from atmospheric contact.
+### State variables in the coupled model
 
-Model development emphasizes simplified two-dimensional hydrodynamic frameworks to explore first-order controls on DIC transport.
+The main coupled model integrates the following prognostic state:
 
-## Learning goals reflected in this repository
+- `DIC` (dissolved inorganic carbon),
+- `TA` (total alkalinity),
+- `LDOC` (labile dissolved organic carbon),
+- `SDOC` (semi-labile dissolved organic carbon),
+- `RDOC` (refractory dissolved organic carbon).
 
-The repository work should contribute to:
+Carbonate species (`CO2*`, `HCO3-`, `CO3--`) and `pH` are diagnosed from `(DIC, TA, T, S)` each step.
 
-1. Reviewing and synthesizing literature on vertical and cross-shelf carbon transport.
-2. Understanding shelf-region physics and impacts on DIC dynamics.
-3. Hands-on MIKE workflow practice.
-4. Implementing carbon modules by adapting MIKE Ecolab templates or simple biogeochemical model concepts (e.g., MOPS-like simplifications).
-5. Recommending how DIC can be integrated as a permanent stand-alone Ecolab template product.
-6. Running cross-shelf DIC transport experiments to estimate temporary oceanic carbon capture and associated timescales.
-7. Supporting bi-weekly modeller meetings and presentation outputs.
+### Process families represented
 
-## Current repository structure
+1. **Air–sea exchange**
+   - CO2 flux driven by seawater vs atmospheric equilibrium CO2 difference.
+   - Flux converted to mixed-layer concentration tendency using dynamic MLD.
 
-- `README.md` — project overview, model structure, and workflow guidance.
-- `test_models/` — process-isolation prototypes used to test one or a few mechanisms at a time.
-  - `air_sea_co2_exchange_model.py` — **physical baseline**: isolates air–sea gas exchange with seasonal temperature forcing.
-  - `air_sea_exchange_with_carbonate_solver.py` — **carbonate chemistry isolation**: compares simple CO₂-only behavior against explicit carbonate speciation under fixed alkalinity.
-  - `air_sea_exchange_with_easy_biology_est.py` — **biology isolation**: adds a simple DIC↔DOC/glucose loop to quantify first-order biological drawdown effects.
-- `main_model/` — integrated model where physical + chemical + biological components are solved together in one modular workflow.
-  - `main.py` — top-level simulation driver and diagnostics for ON/OFF biology comparison.
-  - `parameters.py` — centralized parameter set for forcing, chemistry, biology, and numerics.
-  - `state.py` — state container definitions.
-  - `modules/`
-    - `gas_exchange.py` — gas transfer and air–sea flux tendency functions.
-    - `carbonate_solver.py` — carbonate system and TA/DIC speciation utilities.
-    - `biology.py` — biological production/remineralization tendencies.
-    - `plotting.py` — diagnostics plotting utilities for integrated runs.
+2. **Carbonate chemistry**
+   - Temperature/salinity-dependent solubility and equilibrium constants.
+   - DIC partitioned into carbonate species and pH is solved iteratively.
 
-## How to interpret `test_models` vs `main_model`
+3. **Biology and DOC cycling**
+   - Light-limited production removes DIC and partitions carbon into DOC pools.
+   - Remineralization and DOC aging pathways return carbon toward inorganic form.
 
-### `test_models`: isolated-factor experiments
+4. **Seasonal mixed-layer dynamics**
+   - Seasonal MLD can be enabled/disabled.
+   - During **deepening** (`dMLD/dt > 0`), entrainment is represented as explicit deep-source plus dilution terms.
+   - During **shoaling** (`dMLD/dt < 0`), a sinking/export diagnostic (`F_sink_DIC`) is reported.
 
-The `test_models` folder is intentionally split into targeted experiments where factors are isolated and behavior is easy to diagnose:
+---
 
-- **Physical-only test** to understand air–sea equilibration behavior.
-- **Physical + carbonate-speciation test** to isolate chemistry effects on pCO₂ and species partitioning.
-- **Physical + simple biology test** to isolate biological drawdown and remineralization impacts.
+## Repository structure
 
-These scripts are useful for fast sanity checks, conceptual sensitivity scans, and equation debugging before combining everything.
+```text
+Shelf_Carbon_Modeling/
+├── README.md
+├── main_model/
+│   ├── main.py
+│   ├── main_comparison.py
+│   ├── parameters.py
+│   ├── state.py
+│   └── modules/
+│       ├── gas_exchange.py
+│       ├── carbonate_solver.py
+│       ├── biology.py
+│       ├── plotting.py
+│       └── Light_Parameter.py
+└── test_models/
+    ├── air_sea_co2_exchange_model.py
+    ├── air_sea_exchange_with_carbonate_solver.py
+    ├── air_sea_exchange_with_easy_biology_est.py
+    ├── air_sea_exchange_with_doc_speciation_model.py
+    └── test_plotting.py
+```
 
-### `main_model`: full coupled experiment
+### `main_model/` (integrated model)
 
-The `main_model` combines the same process families in a single, modular coupled run:
+- `main.py`
+  - Primary single-run entry point.
+  - Runs simulation and writes diagnostic plots to `results/`.
+- `main_comparison.py`
+  - Core integrator and process coupling logic.
+  - Implements seasonal forcing functions, RHS tendencies, and output diagnostics dictionary.
+- `parameters.py`
+  - Centralized dataclass parameter store for forcing, chemistry, biology, entrainment, numerics, and initial conditions.
+- `modules/gas_exchange.py`
+  - Gas transfer parameterization and air–sea CO2 tendency calculation.
+- `modules/carbonate_solver.py`
+  - CO2 solubility, salinity-scaled TA utilities, DIC/TA speciation solver, and initialization helpers.
+- `modules/biology.py`
+  - DOC production, remineralization, and pool-transfer tendencies.
+- `modules/plotting.py`
+  - Diagnostics plots, output overview plots, biology-comparison plotting, and entrainment fitting visualization.
+- `modules/Light_Parameter.py`
+  - Utility to calibrate peaked production-light parameters (`Pmax`, `K_L`, `n`, `K_I`) from NPZDO-style reference behavior and write fitted values into `parameters.py`.
 
-- air–sea gas exchange,
-- carbonate equilibrium/speciation,
-- biological uptake/remineralization,
-- integrated diagnostics and comparison workflows.
+### `test_models/` (process-isolated prototypes)
 
-Compared to `test_models`, the `main_model` is designed to represent the full system together, with additional forcing and diagnostics in one place.
+These scripts intentionally isolate single process combinations for debugging and interpretation:
 
-The current coupled formulation uses **fixed total alkalinity (TA)** diagnosed from salinity and includes **MLD-driven deep-water entrainment** during mixed-layer deepening, while carbonate chemistry is solved from `(DIC, TA, T, S)` at each step.
+- `air_sea_co2_exchange_model.py`: physical gas-exchange baseline,
+- `air_sea_exchange_with_carbonate_solver.py`: gas exchange + carbonate chemistry,
+- `air_sea_exchange_with_easy_biology_est.py`: gas exchange + reduced biology,
+- `air_sea_exchange_with_doc_speciation_model.py`: DOC-speciation-oriented variant,
+- `test_plotting.py`: plotting utility checks/examples.
 
-## Forcing parameters (current status)
+---
 
-As of now, the primary forcing parameters are:
+## Forcing and configuration overview
 
-1. **Temperature** — seasonal forcing that modifies solubility, speciation, and gas transfer sensitivity.
-2. **Light** — seasonal forcing used in biological production limitations.
-3. **MLD (Mixed Layer Depth)** — controls flux-to-concentration conversion and can be fixed or seasonal with its own toggle.
+Configured in `main_model/parameters.py`:
 
-> Note: one shared `seasonality` switch controls both temperature and light forcing. MLD has a separate seasonality toggle, and positive `dh/dt` triggers deep-water entrainment via `(dh/dt)/h * (C_deep - C_surface)`. A sinking-export diagnostic is also reported during shoaling (`dh/dt < 0`).
+- **Atmospheric and physical setup**: salinity, wind speed, atmospheric pCO2.
+- **Temperature forcing**: min/max temperature and peak day.
+- **Light forcing**: winter/summer light, peak day, phase shift, and shape sharpness.
+- **MLD forcing**: fixed or seasonal mixed-layer depth, seasonal extrema and phase.
+- **Deep entrainment endmembers**: deep DIC/TA/LDOC/SDOC/RDOC concentrations.
+- **Biological and DOC kinetics**: growth scaling, production-light coefficients, partition fractions, remineralization and aging rates.
+- **Run controls**: simulation years, output interval, and plot-window selection.
 
-## Typical workflow
+---
 
-1. Define a minimal governing equation set for transport and exchange.
-2. Implement or modify a compact test model with clear parameter exposure.
-3. Run parameter sweeps (mixing, gas transfer, biology, chemistry, forcing timing, etc.).
-4. Diagnose sensitivities and identify robust/fragile assumptions.
-5. Translate stable formulations into MIKE/Ecolab-compatible forms.
-6. Report findings in modeller meetings and track decisions.
+## How to run
 
-## Scope and boundaries
+From repository root:
 
-- This repository is for **rapid model prototyping and sensitivity control**, not a full operational shelf-carbon forecast system.
-- Simplicity and transparency are prioritized over high ecological complexity.
-- Any MIKE-specific implementation should remain traceable to tested equations developed here.
+```bash
+python -m main_model.main
+```
+
+This will:
+
+1. run the coupled simulation,
+2. print integration success/failure,
+3. save figures to `results/`:
+   - `main_model_diagnostics.png`,
+   - `main_model_outputs_overview.png`,
+   - `entrainment_fitting_plot.png`.
+
+If possible in your OS/session, the script will also attempt to open a generated plot automatically.
+
+---
+
+## Key outputs returned by the solver
+
+`run(...)` in `main_comparison.py` returns a dictionary containing, among others:
+
+- time vectors (`t_s`, `t_days`),
+- forcings (`T_C`, `Light`, `MLD`, `dMLD_dt`),
+- carbonate state (`CO2`, `HCO3`, `CO3`, `pH`, `pCO2_sw`, `delta_pCO2`),
+- carbon pools (`DIC`, `TA`, `LDOC`, `SDOC`, `RDOC`, `DOC`),
+- fluxes/tendencies (`F_ex`, `fprod`, `fremin`, entrainment source and dilution terms),
+- diagnostics (`frac_CO2`, `frac_HCO3`, `frac_CO3`, `F_sink_DIC`).
+
+These outputs are designed to support both mechanistic interpretation and plotting/report workflows.
+
+---
+
+## Typical workflow for development
+
+1. Start with one of the `test_models` scripts to isolate behavior.
+2. Modify equations/parameters and validate sensitivities.
+3. Port stable changes to the coupled `main_model`.
+4. Run integrated simulations and inspect plots/diagnostics.
+5. Record assumptions and implications for MIKE/Ecolab translation.
+
+---
+
+## Notes on intent and boundaries
+
+- This is a **research/prototyping** codebase, not an operational forecasting system.
+- Simplicity and process transparency are prioritized over ecological complexity.
+- The architecture is kept modular so each process family can be independently improved.
 
 ## Team and course metadata
 
@@ -119,5 +189,5 @@ As of now, the primary forcing parameters are:
 ## Core references
 
 - MIKE user documentation.
-- Tsunogai, S., Watanabe, S., & Sato, T. (1999). *Is there a “continental shelf pump” for the absorption of atmospheric CO₂?* Tellus B, 51(3), 701–712.
+- Tsunogai, S., Watanabe, S., & Sato, T. (1999). *Is there a “continental shelf pump” for the absorption of atmospheric CO2?* Tellus B, 51(3), 701–712.
 - Yool, A., & Fasham, M. J. R. (2001). *An examination of the “continental shelf pump” in an open ocean general circulation model.* Global Biogeochemical Cycles, 15(4), 831–844.
