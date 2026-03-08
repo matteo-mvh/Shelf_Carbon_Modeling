@@ -25,6 +25,9 @@ class Params:
     pCO2_air: float = 420.0
     # Atmospheric partial pressure of CO2 [µatm]
 
+    # ============================================================
+    # Seasonal MLD forcing
+    # ============================================================
     
     mld: float = 50.0
     # Fixed mixed-layer depth [m]
@@ -74,10 +77,10 @@ class Params:
     light_sharpness: float = 1.5
     # Shape exponent for the seasonal light curve (>1 sharpens summer peak)
 
-    light_winter: float = 120.0
+    light_winter: float = 40.0
     # Winter minimum photosynthetically active radiation [µmol photons m^-2 s^-1]
 
-    light_summer: float = 1000.0
+    light_summer: float = 1200.0
     # Summer maximum photosynthetically active radiation [µmol photons m^-2 s^-1]
 
 
@@ -97,7 +100,7 @@ class Params:
     # Biology and DOC parameters (reduced DIC-DOC formulation)
     # ============================================================
 
-    mu_bio: float = 1.0e-8
+    mu_bio: float = 5.0e-8
     # Biological growth-rate scaling µ [s^-1] in Fprod = µ * PP(L)
 
     # Fitted production-irradiance parameters (section 6.1)
@@ -111,9 +114,9 @@ class Params:
     alpha_r: float = 0.0
 
     # DOC remineralization rates [s^-1]
-    lambda_l: float = 3.0e-6
-    lambda_s: float = 5.0e-8
-    lambda_r: float = 3.0e-10
+    lambda_l: float = 3.0e-5
+    lambda_s: float = 5.0e-7
+    lambda_r: float = 3.0e-9
 
     # DOC aging rates [s^-1]
     gamma_l: float = 5.0e-8
@@ -139,13 +142,13 @@ class Params:
     pCO2_sw_init: float = 400.0
     # Initial surface seawater pCO2 [µatm]
 
-    LDOC0: float = 0.01
+    LDOC0: float = 0.005
     # Initial labile DOC [mol C m^-3]
 
-    SDOC0: float = 0.3
+    SDOC0: float = 0.03
     # Initial semi-labile DOC [mol C m^-3]
 
-    RDOC0: float = 0.04
+    RDOC0: float = 0.01
     # Initial refractory DOC [mol C m^-3]
 
 
