@@ -20,7 +20,7 @@ def _normalize_to_seasonal_range(values):
     return (values - vmin) / (vmax - vmin)
 
 
-def _apply_time_axis_format(axes, td, plot_last_year_only):
+def _apply_time_axis_format(axes, td_on, plot_last_year_only):
     """Format the shared x-axis as month labels for one-year windows, else keep day units."""
     if plot_last_year_only:
         x0 = float(np.nanmin(td))
@@ -92,16 +92,16 @@ def save_diagnostics_plot(
     mld_norm = _normalize_to_seasonal_range(outp["MLD"])
 
     ax4 = axes[4]
-    ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
-    ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
-    ax4.plot(td, mld_norm, label="MLD (normalized)", color="tab:green")
+    ax4.plot(td_on, temp_norm, label="Temperature (normalized)", color="tab:red")
+    ax4.plot(td_on, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.plot(td_on, mld_norm, label="MLD (normalized)", color="tab:green")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
     ax4.legend(loc="upper right")
-    _apply_time_axis_format(axes, td, plot_last_year_only)
+    _apply_time_axis_format(axes, td_on, plot_last_year_only)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
@@ -115,51 +115,57 @@ def save_biology_comparison_plot(
     output_path: str = "results/biology_toggle_comparison.png",
     plot_last_year_only: bool = True,
 ):
-    """Save side-by-side ON/OFF biology diagnostics for DIC-DOC pools."""
+    """Save side-by-side ON/OFF biology diagnostics for DIC-DOC pools.
+
+    Handles runs with different output lengths (e.g., if one solve terminates early).
+    """
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    t = out_on["t_s"]
+    t_on = out_on["t_s"]
+    t_off = out_off["t_s"]
     sec_per_year = 365 * 24 * 3600
-    mask = t >= (t[-1] - sec_per_year) if plot_last_year_only else np.ones_like(t, dtype=bool)
+    mask_on = t_on >= (t_on[-1] - sec_per_year) if plot_last_year_only else np.ones_like(t_on, dtype=bool)
+    mask_off = t_off >= (t_off[-1] - sec_per_year) if plot_last_year_only else np.ones_like(t_off, dtype=bool)
 
-    onp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_on.items()}
-    offp = {k: (v[mask] if isinstance(v, np.ndarray) and v.shape == t.shape else v) for k, v in out_off.items()}
+    onp = {k: (v[mask_on] if isinstance(v, np.ndarray) and v.shape == t_on.shape else v) for k, v in out_on.items()}
+    offp = {k: (v[mask_off] if isinstance(v, np.ndarray) and v.shape == t_off.shape else v) for k, v in out_off.items()}
 
-    td = onp["t_days"]
+    td_on = onp["t_days"]
+    td_off = offp["t_days"]
     time_window = "last year" if plot_last_year_only else "full simulation"
 
     fig, axes = plt.subplots(5, 1, figsize=(11, 15), sharex=True)
 
-    axes[0].plot(td, offp["DIC"], label="DIC (biology OFF)")
-    axes[0].plot(td, onp["DIC"], label="DIC (biology ON)")
-    axes[0].plot(td, onp["DOC"], label="DOC total (biology ON)")
-    axes[0].plot(td, onp["DIC"] + onp["DOC"], label="Total C = DIC + DOC (ON)")
+    axes[0].plot(td_off, offp["DIC"], label="DIC (biology OFF)")
+    axes[0].plot(td_on, onp["DIC"], label="DIC (biology ON)")
+    axes[0].plot(td_on, onp["DOC"], label="DOC total (biology ON)")
+    axes[0].plot(td_on, onp["DIC"] + onp["DOC"], label="Total C = DIC + DOC (ON)")
     axes[0].set_ylabel("Carbon (mol C m$^{-3}$)")
     axes[0].set_title(f"Carbon pools with biology toggle ({time_window})")
     axes[0].grid(True)
     axes[0].legend()
 
-    axes[1].plot(td, offp["pCO2_sw"], label="pCO2_sw (OFF)")
-    axes[1].plot(td, onp["pCO2_sw"], label="pCO2_sw (ON)")
+    axes[1].plot(td_off, offp["pCO2_sw"], label="pCO2_sw (OFF)")
+    axes[1].plot(td_on, onp["pCO2_sw"], label="pCO2_sw (ON)")
     axes[1].axhline(420.0, linestyle="--", label="pCO2_air")
     axes[1].set_ylabel("pCO2 (uatm)")
     axes[1].set_title("Surface pCO2")
     axes[1].grid(True)
     axes[1].legend()
 
-    axes[2].plot(td, offp["F"], label="Air-sea flux (OFF)")
-    axes[2].plot(td, onp["F"], label="Air-sea flux (ON)")
-    axes[2].plot(td, onp["fremin"], label="DOC remin flux (ON)")
-    axes[2].plot(td, -onp["fprod"], label="Biological production sink (ON)")
+    axes[2].plot(td_off, offp["F"], label="Air-sea flux (OFF)")
+    axes[2].plot(td_on, onp["F"], label="Air-sea flux (ON)")
+    axes[2].plot(td_on, onp["fremin"], label="DOC remin flux (ON)")
+    axes[2].plot(td_on, -onp["fprod"], label="Biological production sink (ON)")
     axes[2].axhline(0, linestyle="--")
     axes[2].set_ylabel("F (mol C m$^{-2}$ s$^{-1}$)")
     axes[2].set_title("Air-sea and biology carbon fluxes")
     axes[2].grid(True)
     axes[2].legend()
 
-    axes[3].plot(td, onp["pH"], label="pH (ON)")
-    axes[3].plot(td, offp["pH"], label="pH (OFF)", linestyle="--")
+    axes[3].plot(td_on, onp["pH"], label="pH (ON)")
+    axes[3].plot(td_off, offp["pH"], label="pH (OFF)", linestyle="--")
     axes[3].set_ylabel("pH")
     axes[3].set_title("pH")
     axes[3].grid(True)
@@ -170,16 +176,16 @@ def save_biology_comparison_plot(
     mld_norm = _normalize_to_seasonal_range(onp["MLD"])
 
     ax4 = axes[4]
-    ax4.plot(td, temp_norm, label="Temperature (normalized)", color="tab:red")
-    ax4.plot(td, light_norm, label="Light (normalized)", color="tab:blue")
-    ax4.plot(td, mld_norm, label="MLD (normalized)", color="tab:green")
+    ax4.plot(td_on, temp_norm, label="Temperature (normalized)", color="tab:red")
+    ax4.plot(td_on, light_norm, label="Light (normalized)", color="tab:blue")
+    ax4.plot(td_on, mld_norm, label="MLD (normalized)", color="tab:green")
     ax4.set_ylabel("Normalized forcing (0-1)")
     ax4.set_ylim(0.0, 1.0)
     ax4.set_title("Forcing parameters (normalized to seasonal min/max)")
     ax4.grid(True)
 
     ax4.legend(loc="upper right")
-    _apply_time_axis_format(axes, td, plot_last_year_only)
+    _apply_time_axis_format(axes, td_on, plot_last_year_only)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150)

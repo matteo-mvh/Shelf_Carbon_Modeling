@@ -302,15 +302,34 @@ def main():
     print("Run success (ON):", out_on["success"])
     print("Run success (OFF):", out_off["success"])
 
-    figure_path = save_biology_comparison_plot(out_on, out_off, plot_last_year_only=params_on.plot_last_year_only)
-    print("Saved plot:", figure_path)
+    if out_on["success"] and out_off["success"]:
+        figure_path = save_biology_comparison_plot(out_on, out_off, plot_last_year_only=params_on.plot_last_year_only)
+        print("Saved plot:", figure_path)
+    else:
+        print("Skipping comparison plot because one or both integrations failed.")
+        print("ON message:", out_on["message"])
+        print("OFF message:", out_off["message"])
 
-    single_run_plot_path = save_diagnostics_plot(
-        out_on,
-        output_path="results/main_model_diagnostics_on.png",
-        plot_last_year_only=params_on.plot_last_year_only,
-    )
-    print("Saved single-run plot (ON):", single_run_plot_path)
+    if out_on["success"]:
+        single_run_plot_path = save_diagnostics_plot(
+            out_on,
+            output_path="results/main_model_diagnostics_on.png",
+            plot_last_year_only=params_on.plot_last_year_only,
+        )
+        print("Saved single-run plot (ON):", single_run_plot_path)
+    else:
+        print("Skipping ON diagnostics plot because ON integration failed.")
+
+    if out_off["success"]:
+        single_run_plot_off_path = save_diagnostics_plot(
+            out_off,
+            output_path="results/main_model_diagnostics_off.png",
+            plot_last_year_only=params_off.plot_last_year_only,
+        )
+        print("Saved single-run plot (OFF):", single_run_plot_off_path)
+    else:
+        print("Skipping OFF diagnostics plot because OFF integration failed.")
+
     return out_on, out_off
 
 
