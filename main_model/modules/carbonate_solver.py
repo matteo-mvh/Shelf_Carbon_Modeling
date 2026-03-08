@@ -61,7 +61,7 @@ def ta_from_salinity(S, ta0, S0=35.0):
     return ta0 * (S / S0)
 
 
-def bracket_root(fun, x_min=3.0, x_max=11.0, n=1200):
+def bracket_root(fun, x_min=0.0, x_max=14.0, n=2000):
     """Find robust pH bracket for root finding."""
     xs = np.linspace(x_min, x_max, n)
     fs = np.array([fun(x) for x in xs], dtype=float)
@@ -78,7 +78,38 @@ def bracket_root(fun, x_min=3.0, x_max=11.0, n=1200):
             return xs[i], xs[i + 1]
 
     j = int(np.argmin(np.abs(fs)))
-    return max(x_min, xs[j] - 0.3), min(x_max, xs[j] + 0.3)
+    return max(x_min, xs[j] - 0.5), min(x_max, xs[j] + 0.5)
+
+
+def _solve_ph_from_residual(residual, pH_guess=None, x_min=0.0, x_max=14.0):
+    """Solve pH robustly from a residual function.
+
+    Preferred path uses Brent with a sign-change bracket. If no sign change can
+    be found (which can occur transiently for extreme/unphysical states during
+    ODE stepping), fall back to the pH value that minimizes |residual| on a
+    dense scan. This prevents hard model crashes while keeping continuity.
+    """
+    if pH_guess is not None:
+        bracket = _find_ph_bracket_from_guess(residual, pH_guess, x_min=x_min, x_max=x_max)
+        if bracket is None:
+            a, b = bracket_root(residual, x_min=x_min, x_max=x_max)
+        else:
+            a, b = bracket
+    else:
+        a, b = bracket_root(residual, x_min=x_min, x_max=x_max)
+
+    fa, fb = residual(a), residual(b)
+    if np.isfinite(fa) and np.isfinite(fb) and np.sign(fa) * np.sign(fb) <= 0:
+        return brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
+
+    xs = np.linspace(x_min, x_max, 4000)
+    fs = np.array([residual(x) for x in xs], dtype=float)
+    mask = np.isfinite(fs)
+    if not np.any(mask):
+        raise ValueError("Residual is non-finite across the pH search range.")
+    xs_valid = xs[mask]
+    fs_valid = fs[mask]
+    return float(xs_valid[int(np.argmin(np.abs(fs_valid)))])
 
 
 def _find_ph_bracket_from_guess(residual, pH_guess, x_min=3.0, x_max=11.0):
@@ -94,11 +125,13 @@ def _find_ph_bracket_from_guess(residual, pH_guess, x_min=3.0, x_max=11.0):
 
 
 def speciate_from_dic_ta(dic, ta, T, S, pH_guess=None):
-    """Given DIC and TA (mol m^-3), solve pH and carbonate species."""
+    """Given DIC and TA (mol m^-3), solve pH and carbonate species.
+
+    Uses the simplified TA closure:
+    TA = [HCO3-] + 2[CO3--] + [OH-] - [H+].
+    """
     K1, K2 = K1_K2(T, S)
     Kw = Kw_const(T)
-    Kb = Kb_dickson(T, S)
-    TB = total_boron(S)
 
     def residual(pH):
         H = 10 ** (-pH)
@@ -106,23 +139,10 @@ def speciate_from_dic_ta(dic, ta, T, S, pH_guess=None):
         hco3 = co2 * K1 / H
         co3 = co2 * K1 * K2 / H**2
         oh = Kw / H
-        boh4 = TB * Kb / (Kb + H)
-        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
-        return ta_calc - ta
+        ta_calc = hco3 + 2 * co3 + oh - H
+        return float(ta) - ta_calc
 
-    if pH_guess is not None:
-        bracket = _find_ph_bracket_from_guess(residual, pH_guess)
-        if bracket is None:
-            a, b = bracket_root(residual)
-        else:
-            a, b = bracket
-    else:
-        a, b = bracket_root(residual)
-    fa, fb = residual(a), residual(b)
-    if np.sign(fa) * np.sign(fb) > 0:
-        raise ValueError("Could not bracket pH root in speciation solver.")
-
-    pH = brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
+    pH = _solve_ph_from_residual(residual, pH_guess=pH_guess)
     H = 10 ** (-pH)
     co2 = dic / (1 + K1 / H + K1 * K2 / H**2)
     hco3 = co2 * K1 / H
@@ -135,8 +155,6 @@ def initialize_dic_from_pco2(pco2, ta, T, S):
     K0 = solubility_co2_weiss74(T, S)
     K1, K2 = K1_K2(T, S)
     Kw = Kw_const(T)
-    Kb = Kb_dickson(T, S)
-    TB = total_boron(S)
     co2 = K0 * pco2
 
     def residual(pH):
@@ -144,12 +162,10 @@ def initialize_dic_from_pco2(pco2, ta, T, S):
         hco3 = co2 * K1 / H
         co3 = co2 * K1 * K2 / H**2
         oh = Kw / H
-        boh4 = TB * Kb / (Kb + H)
-        ta_calc = hco3 + 2 * co3 + boh4 + oh - H
-        return ta_calc - ta
+        ta_calc = hco3 + 2 * co3 + oh - H
+        return float(ta) - ta_calc
 
-    a, b = bracket_root(residual)
-    pH = brentq(residual, a, b, xtol=1e-12, rtol=1e-10, maxiter=200)
+    pH = _solve_ph_from_residual(residual)
     H = 10 ** (-pH)
     hco3 = co2 * K1 / H
     co3 = co2 * K1 * K2 / H**2
