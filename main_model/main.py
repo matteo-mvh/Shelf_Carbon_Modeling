@@ -317,6 +317,8 @@ def run(p: Params):
         "fremin": fremin,
         "pH": pH,
         "pCO2_sw": pco2_sw,
+        "pCO2_air": np.full_like(pco2_sw, p.pCO2_air, dtype=float),
+        "delta_pCO2": pco2_sw - p.pCO2_air,
         "F_ex": F_ex,
         "frac_CO2": frac_co2,
         "frac_HCO3": frac_hco3,
