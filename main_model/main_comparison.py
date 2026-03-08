@@ -13,6 +13,8 @@ Key assumptions in this version:
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 import sys
 import webbrowser
 import numpy as np
@@ -41,7 +43,29 @@ DEFAULT_NON_SEASONAL_MLD_METERS = 50.0
 def open_plot(path: str) -> bool:
     """Open a saved plot file in the default viewer/browser."""
     abs_path = os.path.abspath(path)
-    return webbrowser.open(f"file://{abs_path}")
+
+    if not os.path.exists(abs_path):
+        return False
+
+    if sys.platform.startswith("darwin"):
+        completed = subprocess.run(["open", abs_path], check=False)
+        return completed.returncode == 0
+
+    if os.name == "nt":
+        try:
+            os.startfile(abs_path)  # type: ignore[attr-defined]
+            return True
+        except OSError:
+            return False
+
+    for launcher in ("xdg-open", "gio", "gnome-open", "kde-open"):
+        launcher_path = shutil.which(launcher)
+        if launcher_path:
+            completed = subprocess.run([launcher_path, abs_path], check=False)
+            if completed.returncode == 0:
+                return True
+
+    return webbrowser.open(f"file://{abs_path}", new=2)
 
 
 def seasonal_temperature(t, T_min, T_max, seasonality=True, peak_day=230.0, cycle_days=365.0):
