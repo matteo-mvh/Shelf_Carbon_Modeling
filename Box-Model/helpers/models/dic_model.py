@@ -264,34 +264,6 @@ MAX_TOTAL_EXCHANGE_FRACTION_D1 = 0.0005
 
 
 # ------------------------------------------------------------
-# Biological DIC drawdown
-# ------------------------------------------------------------
-
-BIO_PUMP_ON = True
-
-# Start lower than before. This is now calibrated, because too strong direct
-# surface DIC uptake can make surface pCO2 unrealistically low.
-BIO_NCP_MULTIPLIER = 0.5
-
-SHELF_NCP_MAX_MMOL_M3_D = 0.24
-OCEAN_NCP_MAX_MMOL_M3_D = 0.16
-
-SPRING_BLOOM_DAY = 135.0
-SPRING_BLOOM_WIDTH = 45.0
-
-SUMMER_BROAD_DAY = 205.0
-SUMMER_BROAD_WIDTH = 85.0
-
-FALL_BLOOM_DAY = 275.0
-FALL_BLOOM_WIDTH = 35.0
-
-SUMMER_WEIGHT = 0.30
-FALL_WEIGHT = 0.25
-
-BIO_REMIN_FRACTION_TO_LOWER_BOX = 0.45
-
-
-# ------------------------------------------------------------
 # Carbonate settings
 # ------------------------------------------------------------
 # NOTE:
@@ -387,19 +359,6 @@ PARAMETER_NAMES_FOR_FILE = [
     "DIC_DIFF_FACTOR_MAX",
     "MAX_TOTAL_EXCHANGE_FRACTION_D1",
 
-    "BIO_PUMP_ON",
-    "BIO_NCP_MULTIPLIER",
-    "SHELF_NCP_MAX_MMOL_M3_D",
-    "OCEAN_NCP_MAX_MMOL_M3_D",
-    "SPRING_BLOOM_DAY",
-    "SPRING_BLOOM_WIDTH",
-    "SUMMER_BROAD_DAY",
-    "SUMMER_BROAD_WIDTH",
-    "FALL_BLOOM_DAY",
-    "FALL_BLOOM_WIDTH",
-    "SUMMER_WEIGHT",
-    "FALL_WEIGHT",
-    "BIO_REMIN_FRACTION_TO_LOWER_BOX",
 
     "TA0_UMOLKG",
     "S0",
@@ -1433,33 +1392,6 @@ def combined_exchange(
     return tendencies, q_total, q_density, q_background, signed_Q_total
 
 
-def seasonal_ncp_shape(day_of_year: float) -> float:
-    spring = np.exp(-0.5 * ((day_of_year - SPRING_BLOOM_DAY) / SPRING_BLOOM_WIDTH) ** 2)
-    summer = np.exp(-0.5 * ((day_of_year - SUMMER_BROAD_DAY) / SUMMER_BROAD_WIDTH) ** 2)
-    fall = np.exp(-0.5 * ((day_of_year - FALL_BLOOM_DAY) / FALL_BLOOM_WIDTH) ** 2)
-    return spring + SUMMER_WEIGHT * summer + FALL_WEIGHT * fall
-
-
-def biological_dic_tendency(current_time: np.datetime64) -> np.ndarray:
-    out = np.zeros(4, dtype=float)
-    if not BIO_PUMP_ON:
-        return out
-
-    ts = pd.Timestamp(current_time)
-    day = float(ts.dayofyear)
-    shape = seasonal_ncp_shape(day)
-
-    shelf_uptake = BIO_NCP_MULTIPLIER * SHELF_NCP_MAX_MMOL_M3_D * shape
-    ocean_uptake = BIO_NCP_MULTIPLIER * OCEAN_NCP_MAX_MMOL_M3_D * shape
-
-    out[0] -= shelf_uptake
-    out[2] -= ocean_uptake
-
-    out[1] += BIO_REMIN_FRACTION_TO_LOWER_BOX * shelf_uptake * BOX_VOLUMES[0] / BOX_VOLUMES[1]
-    out[3] += BIO_REMIN_FRACTION_TO_LOWER_BOX * ocean_uptake * BOX_VOLUMES[2] / BOX_VOLUMES[3]
-    return out
-
-
 def deep_export_seasonal_factor(current_time: np.datetime64) -> float:
     if DEEP_EXPORT_SEASONAL_AMPLITUDE <= 0.0:
         return 1.0
@@ -1568,7 +1500,6 @@ def run_dic_model(
 
     piston_velocity = np.full((n_time, 4), np.nan, dtype=float)
     airsea_tendency = np.full((n_time, 4), np.nan, dtype=float)
-    bio_tendency = np.full((n_time, 4), np.nan, dtype=float)
     deep_export_tend = np.full((n_time, 4), np.nan, dtype=float)
     deep_export_rates = np.full((n_time, 4), np.nan, dtype=float)
     deep_carbon_export_mmol_d = np.full((n_time, 4), np.nan, dtype=float)
@@ -1629,8 +1560,6 @@ def run_dic_model(
         dCdt[0] += airsea_tendency[k, 0]
         dCdt[2] += airsea_tendency[k, 2]
 
-        bio_now = biological_dic_tendency(time[k])
-        bio_tendency[k, :] = bio_now
         dCdt += bio_now
 
         export_now, export_q_now, carbon_export_now = deep_export_tendency(time[k], dic[k, :], rho_now)
@@ -1678,7 +1607,6 @@ def run_dic_model(
     pco2[-1, :] = carb_last["pCO2_uatm"]
 
     airsea_tendency[-1, :] = 0.0
-    bio_tendency[-1, :] = biological_dic_tendency(time[-1])
     deep_export_tend[-1, :], deep_export_rates[-1, :], deep_carbon_export_mmol_d[-1, :] = deep_export_tendency(time[-1], dic[-1, :], rho_last)
 
     for pair in PAIR_LIST:
@@ -1705,7 +1633,6 @@ def run_dic_model(
         "density_exchange_rates": density_exchange_rates,
         "background_exchange_rates": background_exchange_rates,
         "airsea_tendency": airsea_tendency,
-        "bio_tendency": bio_tendency,
         "deep_export_tendency": deep_export_tend,
         "deep_export_rates": deep_export_rates,
         "deep_carbon_export_mmol_d": deep_carbon_export_mmol_d,
@@ -1929,7 +1856,6 @@ def _tuning_parameters() -> list[dict]:
     """
     return [
         # Biology first, because previous runs suggested surface pCO2 was too low.
-        {"name": "BIO_NCP_MULTIPLIER", "min": 0.0, "max": 3.0, "zero_step": 0.20},
 
         # Deep export cannot go to 0 anymore.
         {"name": "DEEP_EXPORT_BASE_D1", "min": 0.0002, "max": 0.10, "zero_step": 0.002},
@@ -1979,7 +1905,6 @@ def calibrate_to_recad(
     print("Iterative calibration against monthly ReCAD/SOCAT ΔpCO2")
     print("============================================================")
     print("TA0_UMOLKG is NOT calibrated in this version.")
-    print("Calibration includes BIO_NCP_MULTIPLIER, deep export, deep boundary DIC, and connectivity.")
     print(f"Maximum iterations: {TUNING_MAX_ITERATIONS}")
     print(f"Stop if r-value exceeds: {TUNING_TARGET_R_VALUE}")
     print(f"Initial percentage step: ±{100*TUNING_START_PERCENT:.1f}%")
@@ -2191,7 +2116,6 @@ def calibrate_to_recad(
     print(f"  TA0_UMOLKG = {TA0_UMOLKG}  (not calibrated)")
     for spec in param_specs:
         print(f"  {spec['name']} = {globals()[spec['name']]}")
-    print(f"  BIO_PUMP_ON = {BIO_PUMP_ON}")
     print(f"  final r-value = {best_r:.4f}")
     print(f"  final RMSE = {best_rmse:.3f} µatm")
     print(f"  final bias = {best_bias:.3f} µatm")
@@ -2495,33 +2419,6 @@ def plot_airsea_tendency(time: np.ndarray, airsea_tendency: np.ndarray, out_name
     plt.show()
 
 
-def plot_bio_tendency(time: np.ndarray, bio_tendency: np.ndarray, out_name: str | None = None):
-    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
-    fig.suptitle("Prescribed biological DIC tendency", fontsize=14)
-
-    axes[0].plot(time, bio_tendency[:, 0], label="Box 1 shelf surface", linewidth=1.3)
-    axes[0].plot(time, bio_tendency[:, 1], label="Box 2 shelf bottom", linewidth=1.3)
-    axes[0].axhline(0.0, color="k", linestyle="--", linewidth=1.0)
-    axes[0].set_title("Shelf boxes")
-    axes[0].set_ylabel("mmol C m$^{-3}$ d$^{-1}$")
-    axes[0].grid(True, alpha=0.3)
-    axes[0].legend()
-
-    axes[1].plot(time, bio_tendency[:, 2], label="Box 3 ocean surface", linewidth=1.3)
-    axes[1].plot(time, bio_tendency[:, 3], label="Box 4 ocean deep", linewidth=1.3)
-    axes[1].axhline(0.0, color="k", linestyle="--", linewidth=1.0)
-    axes[1].set_title("Ocean boxes")
-    axes[1].set_ylabel("mmol C m$^{-3}$ d$^{-1}$")
-    axes[1].set_xlabel("Time")
-    axes[1].grid(True, alpha=0.3)
-    axes[1].legend()
-
-    plt.tight_layout()
-    if SAVE_FIGURES and out_name is not None:
-        fig.savefig(OUT_DIR / out_name, dpi=200, bbox_inches="tight")
-    plt.show()
-
-
 def plot_density_diagnostics(time: np.ndarray, rho: np.ndarray, rho_no_dic: np.ndarray, rho_dic_contribution: np.ndarray):
     plot_four_box_time_series(time, rho, "Density including TEOS-10 + DIC mass correction", "Density (kg m$^{-3}$)", "tab:brown", "density_total_four_boxes.png")
     plot_four_box_time_series(time, rho_dic_contribution, "DIC contribution to density", "Density contribution (kg m$^{-3}$)", "tab:purple", "density_dic_contribution_four_boxes.png")
@@ -2596,8 +2493,6 @@ def main():
         f"{np.nanmean(result['piston_velocity_m_d'][:, 2]):.4f}"
     )
     print(f"TA0_UMOLKG:                    {TA0_UMOLKG}  (not calibrated)")
-    print(f"BIO_PUMP_ON:                   {BIO_PUMP_ON}")
-    print(f"BIO_NCP_MULTIPLIER:            {BIO_NCP_MULTIPLIER}")
     print(f"AIRSEA_K_MULTIPLIER:           {AIRSEA_K_MULTIPLIER}")
     print(f"BACKGROUND_MIXING_BASE_D1:     {BACKGROUND_MIXING_BASE_D1}")
     print(f"SURFACE_DEEP_CONNECTIVITY_MULTIPLIER: {SURFACE_DEEP_CONNECTIVITY_MULTIPLIER}")
@@ -2640,7 +2535,6 @@ def main():
         plot_combined_exchange_fluxes(result["time"], result["combined_exchange_fluxes"], "combined_exchange_fluxes.png")
         plot_exchange_rate_components(result["time"], result["total_exchange_rates"], result["density_exchange_rates"], result["background_exchange_rates"], "exchange_rate_components.png")
         plot_airsea_tendency(result["time"], result["airsea_tendency"], "airsea_dic_tendency.png")
-        plot_bio_tendency(result["time"], result["bio_tendency"], "bio_dic_tendency.png")
         plot_deep_export_diagnostics(result["time"], result["deep_export_rates"], result["deep_export_tendency"], result["deep_carbon_export_mmol_d"], "deep_export_diagnostics.png")
 
     plot_surface_pco2(result["time"], result["pco2"], recad, "surface_pco2_compared_with_recad.png")
