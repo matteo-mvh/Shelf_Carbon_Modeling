@@ -17,7 +17,6 @@ def run_dic_calibration_and_model(results_dir: Path, plot_only_socat: bool = Tru
     m.OUT_DIR = results_dir
     m.PARAMETER_FILE = m.BASE_DIR / "parameter_files" / "dic_parameters.py"
     m.PLOT_ONLY_SOCAT_COMPARISON = plot_only_socat
-    m.BIO_NCP_MULTIPLIER = 0.0
     m.main()
 
 
@@ -45,5 +44,4 @@ def run_dic_full(results_dir: Path):
     m.OUT_DIR = results_dir
     m.PARAMETER_FILE = m.BASE_DIR / "parameter_files" / "dic_parameters.py"
     m.PLOT_ONLY_SOCAT_COMPARISON = False
-    m.BIO_NCP_MULTIPLIER = 0.0
     m.main()
