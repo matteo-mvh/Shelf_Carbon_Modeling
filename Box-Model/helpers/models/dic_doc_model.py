@@ -51,7 +51,7 @@ import cartopy.feature as cfeature
 
 def get_base_dir() -> Path:
     if "__file__" in globals():
-        return Path(__file__).resolve().parent
+        return Path(__file__).resolve().parents[2]
     return Path.cwd()
 
 
